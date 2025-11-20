@@ -5,7 +5,7 @@ import { Patient, Sexo } from './types';
 import { PatientRegistration, PatientList } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
 import { Card, Input, Button } from './components/UiComponents';
-import { Activity, LogOut } from 'lucide-react';
+import { Activity } from 'lucide-react';
 
 // Initial Mock Data (Used only if localStorage is empty)
 const MOCK_PATIENTS: Patient[] = [
@@ -60,14 +60,17 @@ const MOCK_PATIENTS: Patient[] = [
 const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
-      // In a real app, you would validate against a backend
-      // Here we just simulate a successful login/registration
+    setError('');
+    
+    // Validação específica conforme solicitado
+    if (email.trim() === 'drmatheusrbc@gmail.com' && password === '150199') {
       onLogin();
+    } else {
+      setError('Email ou senha incorretos.');
     }
   };
 
@@ -79,23 +82,41 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
             <Activity size={32} />
           </div>
           <h1 className="text-3xl font-bold text-slate-800">MedFlow</h1>
-          <p className="text-slate-500 mt-2">{isRegistering ? 'Criar Nova Conta' : 'Acesso Médico'}</p>
+          <p className="text-slate-500 mt-2">Acesso Médico Restrito</p>
         </div>
         <Card>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <Input label="Email" type="email" placeholder="medico@hospital.com" value={email} onChange={e => setEmail(e.target.value)} required />
-            <Input label="Senha" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={4} />
+            <Input 
+              label="Email" 
+              type="email" 
+              placeholder="seu@email.com" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              required 
+              className="bg-white"
+            />
+            <Input 
+              label="Senha" 
+              type="password" 
+              placeholder="••••••••" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              required 
+              className="bg-white"
+            />
+            
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded text-red-600 text-sm text-center">
+                {error}
+              </div>
+            )}
+
             <Button className="w-full" type="submit">
-              {isRegistering ? 'Cadastrar e Entrar' : 'Entrar no Sistema'}
+              Entrar no Sistema
             </Button>
           </form>
-          <div className="mt-4 text-center">
-            <button 
-              className="text-sm text-blue-600 hover:underline"
-              onClick={() => setIsRegistering(!isRegistering)}
-            >
-              {isRegistering ? 'Já tem uma conta? Faça login' : 'Não tem conta? Cadastre-se'}
-            </button>
+          <div className="mt-4 text-center text-xs text-slate-400">
+            <p>Sistema exclusivo para médicos autorizados.</p>
           </div>
         </Card>
       </div>

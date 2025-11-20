@@ -1,13 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Patient, Sexo } from './types';
 import { PatientRegistration, PatientList } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
 import { Card, Input, Button } from './components/UiComponents';
-import { Activity } from 'lucide-react';
+import { Activity, LogOut } from 'lucide-react';
 
-// Initial Mock Data
+// Initial Mock Data (Used only if localStorage is empty)
 const MOCK_PATIENTS: Patient[] = [
   {
     id: '1',
@@ -51,7 +51,7 @@ const MOCK_PATIENTS: Patient[] = [
         { id: '1', name: 'Ceftriaxona', route: 'IV', dose: '1g', frequency: '12/12h', startDate: '2023-10-25', isContinuous: false, endDate: '2023-11-01' }
     ],
     imaging: [
-      { id: 'img1', date: '2023-10-25', description: 'Raio-X de Tórax: Opacidade em base direita compatível com processo pneumônico.', attachmentName: 'rx_torax.jpg' }
+      { id: 'img1', date: '2023-10-25', description: 'Raio-X de Tórax: Opacidade em base direita compatível com processo pneumônico.', attachmentName: 'rx_exemplo_demo.jpg' }
     ],
     alerts: [{ id: '1', text: 'Solicitar ECOcardiograma', isResolved: false }]
   }
@@ -60,11 +60,15 @@ const MOCK_PATIENTS: Patient[] = [
 const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Mock auth
-    if (email && password) onLogin();
+    if (email && password) {
+      // In a real app, you would validate against a backend
+      // Here we just simulate a successful login/registration
+      onLogin();
+    }
   };
 
   return (
@@ -75,16 +79,23 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
             <Activity size={32} />
           </div>
           <h1 className="text-3xl font-bold text-slate-800">MedFlow</h1>
-          <p className="text-slate-500 mt-2">Acesso Médico</p>
+          <p className="text-slate-500 mt-2">{isRegistering ? 'Criar Nova Conta' : 'Acesso Médico'}</p>
         </div>
         <Card>
           <form onSubmit={handleSubmit} className="space-y-6">
-            <Input label="Email" type="email" placeholder="medico@hospital.com" value={email} onChange={e => setEmail(e.target.value)} />
-            <Input label="Senha" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-            <Button className="w-full" type="submit">Entrar no Sistema</Button>
+            <Input label="Email" type="email" placeholder="medico@hospital.com" value={email} onChange={e => setEmail(e.target.value)} required />
+            <Input label="Senha" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required minLength={4} />
+            <Button className="w-full" type="submit">
+              {isRegistering ? 'Cadastrar e Entrar' : 'Entrar no Sistema'}
+            </Button>
           </form>
-          <div className="mt-4 text-center text-xs text-slate-400">
-            (Qualquer login/senha funciona para demo)
+          <div className="mt-4 text-center">
+            <button 
+              className="text-sm text-blue-600 hover:underline"
+              onClick={() => setIsRegistering(!isRegistering)}
+            >
+              {isRegistering ? 'Já tem uma conta? Faça login' : 'Não tem conta? Cadastre-se'}
+            </button>
           </div>
         </Card>
       </div>
@@ -93,8 +104,26 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 };
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [patients, setPatients] = useState<Patient[]>(MOCK_PATIENTS);
+  // Load Auth State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    return localStorage.getItem('medflow_auth') === 'true';
+  });
+
+  // Load Patients State
+  const [patients, setPatients] = useState<Patient[]>(() => {
+    const saved = localStorage.getItem('medflow_patients');
+    return saved ? JSON.parse(saved) : MOCK_PATIENTS;
+  });
+
+  // Persist Auth
+  useEffect(() => {
+    localStorage.setItem('medflow_auth', String(isAuthenticated));
+  }, [isAuthenticated]);
+
+  // Persist Patients
+  useEffect(() => {
+    localStorage.setItem('medflow_patients', JSON.stringify(patients));
+  }, [patients]);
 
   const handleAddPatient = (newPatient: Patient) => {
     setPatients(prev => [newPatient, ...prev]);
@@ -104,16 +133,33 @@ const App: React.FC = () => {
     setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
   };
 
+  const handleDeletePatient = (id: string) => {
+    setPatients(prev => prev.filter(p => p.id !== id));
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+  };
+
   return (
     <HashRouter>
       <Routes>
         <Route path="/login" element={!isAuthenticated ? <LoginScreen onLogin={() => setIsAuthenticated(true)} /> : <Navigate to="/" />} />
         
-        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} /> : <Navigate to="/login" />} />
+        <Route 
+          path="/" 
+          element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+        />
         
-        <Route path="/register" element={isAuthenticated ? <PatientRegistration onAddPatient={handleAddPatient} /> : <Navigate to="/login" />} />
+        <Route 
+          path="/register" 
+          element={isAuthenticated ? <PatientRegistration onAddPatient={handleAddPatient} /> : <Navigate to="/login" />} 
+        />
         
-        <Route path="/patient/:id/*" element={isAuthenticated ? <PatientDashboard patients={patients} updatePatient={handleUpdatePatient} /> : <Navigate to="/login" />} />
+        <Route 
+          path="/patient/:id/*" 
+          element={isAuthenticated ? <PatientDashboard patients={patients} updatePatient={handleUpdatePatient} /> : <Navigate to="/login" />} 
+        />
       </Routes>
     </HashRouter>
   );

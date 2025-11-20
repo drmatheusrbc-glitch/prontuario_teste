@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FileText, Stethoscope, Activity, 
   FlaskConical, Image as ImageIcon, Pill, BarChart2, 
   AlertTriangle, Plus, Save, Trash2, Download, CheckCircle, Clock, X, Menu,
-  Printer, ClipboardList
+  Printer, ClipboardList, Paperclip
 } from 'lucide-react';
 import { Patient, Sexo, LAB_FIELDS, VitalSign, Evolution, LabResult, Medication, ImagingExam, Diagnosis } from '../types';
 import { Card, Button, Input, TextArea } from './UiComponents';
@@ -778,25 +778,61 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
   const ImagingPage = () => {
     const [note, setNote] = useState('');
     const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+    const [file, setFile] = useState<File | null>(null);
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (e.target.files && e.target.files[0]) {
+        setFile(e.target.files[0]);
+      }
+    };
 
     const handleAddNote = () => {
-      if (!note) return;
-      const newImg: ImagingExam = {
-        id: Date.now().toString(),
-        date: date,
-        description: note
+      if (!note && !file) return;
+      
+      const saveWithAttachment = (base64Data?: string, mimeType?: string) => {
+        const newImg: ImagingExam = {
+          id: Date.now().toString(),
+          date: date,
+          description: note,
+          attachmentName: file ? file.name : undefined,
+          attachmentData: base64Data,
+          attachmentType: mimeType
+        };
+        updatePatient({ ...patient, imaging: [newImg, ...patient.imaging] });
+        setNote('');
+        setFile(null);
       };
-      updatePatient({ ...patient, imaging: [newImg, ...patient.imaging] });
-      setNote('');
+
+      if (file) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          saveWithAttachment(reader.result as string, file.type);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        saveWithAttachment();
+      }
     };
 
     return (
       <div className="space-y-6">
         <Card title="Nova Nota de Imagem / Anexo">
-          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center mb-4 bg-slate-50">
+          <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center mb-4 bg-slate-50 relative">
+              <input 
+                type="file" 
+                id="fileUpload" 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                onChange={handleFileChange}
+              />
               <div className="mx-auto w-12 h-12 text-slate-400 mb-2"><Download /></div>
-              <p className="text-slate-600 text-sm">Arraste arquivos ou clique para fazer upload (Simulação)</p>
-              <Button variant="outline" className="mt-2 text-sm">Selecionar Arquivo</Button>
+              <p className="text-slate-600 text-sm">
+                {file ? `Arquivo selecionado: ${file.name}` : 'Arraste arquivos ou clique para fazer upload'}
+              </p>
+              <div className="mt-2">
+                <Button variant="outline" className="text-sm pointer-events-none">
+                  {file ? 'Alterar Arquivo' : 'Selecionar Arquivo'}
+                </Button>
+              </div>
           </div>
           
           <div className="mb-4">
@@ -818,7 +854,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
             className="bg-white text-slate-900" 
           />
           <div className="flex justify-end">
-            <Button onClick={handleAddNote}><Save size={16} className="mr-2 inline"/> Salvar Nota</Button>
+            <Button onClick={handleAddNote}><Save size={16} className="mr-2 inline"/> Salvar Nota/Anexo</Button>
           </div>
         </Card>
 
@@ -831,13 +867,27 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                      <ImageIcon size={18} />
                      <span>{formatDate(img.date)}</span>
                    </div>
-                   {img.attachmentName && (
-                     <span className="text-xs bg-slate-100 text-slate-600 px-2 py-1 rounded flex items-center gap-1">
-                       <Download size={12} /> {img.attachmentName}
-                     </span>
-                   )}
                 </div>
-                <p className="text-slate-700 whitespace-pre-wrap text-sm">{img.description}</p>
+                {img.description && <p className="text-slate-700 whitespace-pre-wrap text-sm mb-3">{img.description}</p>}
+                
+                {img.attachmentData && (
+                  <div className="mt-2 border-t border-slate-100 pt-2">
+                    {img.attachmentType?.startsWith('image/') ? (
+                      <div>
+                        <p className="text-xs text-slate-500 mb-1 flex items-center gap-1"><Paperclip size={12} /> {img.attachmentName}</p>
+                        <img src={img.attachmentData} alt="Anexo" className="max-w-full max-h-64 rounded border border-slate-200" />
+                      </div>
+                    ) : (
+                      <a 
+                        href={img.attachmentData} 
+                        download={img.attachmentName || 'anexo'} 
+                        className="inline-flex items-center gap-2 px-3 py-2 bg-slate-100 text-blue-600 rounded hover:bg-slate-200 text-sm font-medium transition-colors"
+                      >
+                        <Download size={16} /> Baixar Anexo ({img.attachmentName})
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
             {patient.imaging.length === 0 && <p className="text-slate-500 text-center">Nenhum exame registrado.</p>}

@@ -41,6 +41,8 @@ export interface ImagingExam {
   date: string;
   description: string;
   attachmentName?: string;
+  attachmentData?: string; // Base64 string
+  attachmentType?: string; // MIME type
 }
 
 export interface Alert {

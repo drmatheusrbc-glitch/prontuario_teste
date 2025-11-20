@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Patient, Sexo } from '../types';
 import { Card, Input, Select, Button } from './UiComponents';
 import { calculateBMI, calculateAge } from '../services/utils';
-import { UserPlus, Users, Activity } from 'lucide-react';
+import { UserPlus, Users, Activity, LogOut, Trash2 } from 'lucide-react';
 
 interface RegistrationProps {
   onAddPatient: (p: Patient) => void;
@@ -110,8 +110,22 @@ export const PatientRegistration: React.FC<RegistrationProps> = ({ onAddPatient 
   );
 };
 
-export const PatientList: React.FC<{ patients: Patient[] }> = ({ patients }) => {
+interface PatientListProps {
+  patients: Patient[];
+  onDelete: (id: string) => void;
+  onLogout: () => void;
+}
+
+export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, onLogout }) => {
   const navigate = useNavigate();
+
+  const handleDeleteClick = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if(window.confirm('Tem certeza que deseja excluir este paciente e todos os seus dados?')) {
+      onDelete(id);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50">
        <header className="bg-white shadow-sm border-b border-slate-200">
@@ -119,7 +133,9 @@ export const PatientList: React.FC<{ patients: Patient[] }> = ({ patients }) => 
            <h1 className="text-2xl font-bold text-blue-600 flex items-center gap-2">
              <Activity /> MedFlow
            </h1>
-           <Button onClick={() => alert('Logout clicked')} variant="outline" className="text-sm">Sair</Button>
+           <Button onClick={onLogout} variant="outline" className="text-sm flex items-center gap-2 text-red-600 hover:bg-red-50 border-red-200">
+             <LogOut size={16} /> Sair
+           </Button>
          </div>
        </header>
 
@@ -131,7 +147,7 @@ export const PatientList: React.FC<{ patients: Patient[] }> = ({ patients }) => 
 
          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
            {patients.map(p => (
-             <div key={p.id} onClick={() => navigate(`/patient/${p.id}`)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all group">
+             <div key={p.id} onClick={() => navigate(`/patient/${p.id}`)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all group relative">
                 <div className="flex justify-between items-start">
                    <div>
                      <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600">{p.firstName} {p.lastName}</h3>
@@ -146,6 +162,14 @@ export const PatientList: React.FC<{ patients: Patient[] }> = ({ patients }) => 
                    <p><strong>Admissão:</strong> {new Date(p.admissionDate).toLocaleDateString('pt-BR')}</p>
                    <p><strong>Diagnósticos:</strong> {p.diagnostics.length > 0 ? p.diagnostics[0].name + (p.diagnostics.length > 1 ? '...' : '') : '-'}</p>
                 </div>
+                
+                <button 
+                  onClick={(e) => handleDeleteClick(e, p.id)}
+                  className="absolute top-4 right-4 p-2 bg-white rounded-full text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors shadow-sm border border-transparent hover:border-red-100 opacity-0 group-hover:opacity-100"
+                  title="Excluir paciente"
+                >
+                  <Trash2 size={16} />
+                </button>
              </div>
            ))}
            {patients.length === 0 && (

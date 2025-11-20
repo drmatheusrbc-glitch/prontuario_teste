@@ -66,8 +66,8 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
     
-    // Validação específica conforme solicitado
-    if (email.trim() === 'drmatheusrbc@gmail.com' && password === '150199') {
+    // Ajuste: Converte email para minúsculo para evitar erro no mobile onde o teclado capitaliza a primeira letra
+    if (email.trim().toLowerCase() === 'drmatheusrbc@gmail.com' && password === '150199') {
       onLogin();
     } else {
       setError('Email ou senha incorretos.');
@@ -94,6 +94,10 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
               onChange={e => setEmail(e.target.value)} 
               required 
               className="bg-white"
+              // Propriedades para melhorar usabilidade no mobile
+              autoCapitalize="none"
+              autoCorrect="off"
+              autoComplete="email"
             />
             <Input 
               label="Senha" 

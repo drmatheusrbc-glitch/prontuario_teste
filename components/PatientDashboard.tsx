@@ -19,87 +19,352 @@ interface DashboardProps {
   updatePatient: (p: Patient) => void;
 }
 
-// --- MOCK INTERACTION DATABASE ---
-// In a real app, this would come from an API like DrugBank or similar.
-// We use keyword matching to simulate the logic.
+// --- MOCK INTERACTION DATABASE (DATA FROM PDF GUIDE) ---
 const INTERACTION_DB = [
+  // ANFOTERICINA B
   {
-    drugs: ['varfarina', 'aspirina'],
-    severity: 'Major',
-    title: 'Risco de Sangramento Aumentado',
-    description: 'O uso concomitante de anticoagulantes (Varfarina) e antiplaquetários (Aspirina/AAS) aumenta significativamente o risco de hemorragias graves. Monitorar INR e sinais de sangramento.'
-  },
-  {
-    drugs: ['varfarina', 'aas'],
-    severity: 'Major',
-    title: 'Risco de Sangramento Aumentado',
-    description: 'O uso concomitante de anticoagulantes (Varfarina) e antiplaquetários (AAS) aumenta significativamente o risco de hemorragias graves.'
-  },
-  {
-    drugs: ['sildenafil', 'nitroglicerina'],
-    severity: 'Major',
-    title: 'Hipotensão Grave',
-    description: 'A coadministração pode causar hipotensão severa e refratária, podendo levar a colapso cardiovascular. O uso é contraindicado.'
-  },
-  {
-    drugs: ['sildenafil', 'isordil'],
-    severity: 'Major',
-    title: 'Hipotensão Grave',
-    description: 'Nitratos potencializam o efeito hipotensor de inibidores da PDE5.'
-  },
-  {
-    drugs: ['simvastatina', 'amiodarona'],
+    drugs: ['anfotericina b', 'digoxina'],
     severity: 'Moderate',
-    title: 'Risco de Miopatia/Rabdomiólise',
-    description: 'Amiodarona inibe o metabolismo da simvastatina (CYP3A4), aumentando seus níveis séricos. Dose de simvastatina não deve exceder 20mg/dia.'
+    title: 'Hipocalemia e Toxicidade Digitálica',
+    effect: 'Hipocalemia e toxicidade digitálica.',
+    recommendation: 'Os níveis de potássio devem ser acompanhados, juntamente à função cardíaca. Cloreto de potássio pode ser necessário.'
+  },
+  // AMICACINA / AMINOGLICOSÍDEOS
+  {
+    drugs: ['amicacina', 'furosemida'],
+    severity: 'Moderate',
+    title: 'Nefrotoxicidade',
+    effect: 'Aumento do risco de nefrotoxicidade.',
+    recommendation: 'Deve-se monitorar a função renal.'
   },
   {
-    drugs: ['digoxina', 'amiodarona'],
+    drugs: ['amicacina', 'ibuprofeno'],
+    severity: 'Moderate',
+    title: 'Nefrotoxicidade e Ototoxicidade',
+    effect: 'Pode aumentar os efeitos nefrotóxicos e ototóxicos da amicacina.',
+    recommendation: 'Os intervalos de dosagem da amicacina devem ser aumentados. Monitorar função renal.'
+  },
+  // AMIODARONA
+  {
+    drugs: ['amiodarona', 'amitriptilina'],
+    severity: 'Major',
+    title: 'Arritmias Ventriculares',
+    effect: 'Risco de arritmias ventriculares.',
+    recommendation: 'Uso concomitante deve ser feito com cautela. Observar risco-benefício. Monitorar ocorrência de arritmias.'
+  },
+  {
+    drugs: ['amiodarona', 'azitromicina'],
+    severity: 'Major',
+    title: 'Prolongamento QT',
+    effect: 'Aumento do intervalo QT (arritmias cardíacas graves).',
+    recommendation: 'Devem ser usados com bastante cautela.'
+  },
+  {
+    drugs: ['amiodarona', 'claritromicina'],
+    severity: 'Major',
+    title: 'Prolongamento QT',
+    effect: 'Aumento do intervalo QT (arritmias cardíacas graves).',
+    recommendation: 'Devem ser usados com bastante cautela.'
+  },
+  {
+    drugs: ['amiodarona', 'simvastatina'],
+    severity: 'Major',
+    title: 'Miopatia e Rabdomiólise',
+    effect: 'Aumento da concentração plasmática da estatina podendo levar a miopatia e rabdomiólise.',
+    recommendation: 'Dose de sinvastatina não deve exceder 20mg/dia. Monitorar sintomas de miopatia.'
+  },
+  {
+    drugs: ['amiodarona', 'digoxina'],
+    severity: 'Major',
+    title: 'Toxicidade Digitálica',
+    effect: 'Aumento da concentração plasmática da digoxina (náuseas, vômitos, arritmias).',
+    recommendation: 'Avaliar a suspensão ou redução da dose da digoxina em 1/3 ou metade.'
+  },
+  {
+    drugs: ['amiodarona', 'hidrocortisona'],
+    severity: 'Major',
+    title: 'Arritmias e Hipocalemia',
+    effect: 'Risco de arritmias, hipocalemia e hipomagnesemia.',
+    recommendation: 'Monitorar frequência cardíaca e níveis séricos de potássio e magnésio.'
+  },
+  {
+    drugs: ['amiodarona', 'warfarina'], // varfarina mapped
+    severity: 'Major',
+    title: 'Risco Hemorrágico',
+    effect: 'Potencialização do efeito anticoagulante.',
+    recommendation: 'Redução de 30 a 50% da dose da varfarina e monitorar INR.'
+  },
+  {
+    drugs: ['amiodarona', 'varfarina'],
+    severity: 'Major',
+    title: 'Risco Hemorrágico',
+    effect: 'Potencialização do efeito anticoagulante.',
+    recommendation: 'Redução de 30 a 50% da dose da varfarina e monitorar INR.'
+  },
+  // AMITRIPTILINA
+  {
+    drugs: ['amitriptilina', 'fluconazol'],
+    severity: 'Moderate',
+    title: 'Arritmias Cardíacas',
+    effect: 'Aumento dos níveis séricos dos antidepressivos tricíclicos podendo causar arritmias.',
+    recommendation: 'Avaliar ajuste de dose do antidepressivo.'
+  },
+  // ANLODIPINO
+  {
+    drugs: ['anlodipino', 'simvastatina'],
+    severity: 'Moderate',
+    title: 'Miopatia',
+    effect: 'Aumento da exposição à sinvastatina. Risco de miopatia.',
+    recommendation: 'Limitar dose de sinvastatina a 20mg se uso concomitante.'
+  },
+  // ATENOLOL / BETA-BLOQUEADORES
+  {
+    drugs: ['atenolol', 'ampicilina'],
+    severity: 'Moderate',
+    title: 'Redução do Efeito Anti-hipertensivo',
+    effect: 'Diminuição do efeito do betabloqueador.',
+    recommendation: 'Monitorar a pressão arterial.'
+  },
+  {
+    drugs: ['atenolol', 'insulina'],
+    severity: 'Moderate',
+    title: 'Mascaramento de Hipoglicemia',
+    effect: 'Hipoglicemia prolongada e mascaramento dos sintomas (tremores, palpitações).',
+    recommendation: 'Monitorar glicemia com maior frequência.'
+  },
+  // AZITROMICINA
+  {
+    drugs: ['azitromicina', 'levofloxacino'],
+    severity: 'Contraindicated',
+    title: 'Prolongamento QT',
+    effect: 'Aumento do intervalo QT e arritmias graves.',
+    recommendation: 'Deve-se evitar essa combinação.'
+  },
+  {
+    drugs: ['azitromicina', 'warfarina'],
+    severity: 'Major',
+    title: 'Risco de Sangramento',
+    effect: 'Aumento dos efeitos do anticoagulante.',
+    recommendation: 'Monitorar TAP/INR e ajustar dose.'
+  },
+  // CAPTOPRIL / ENALAPRIL (IECA)
+  {
+    drugs: ['captopril', 'espironolactona'],
+    severity: 'Moderate',
+    title: 'Hipercalemia',
+    effect: 'Aumento do efeito hipercalêmico (potássio alto).',
+    recommendation: 'Monitorar níveis séricos de potássio, principalmente na ICC.'
+  },
+  {
+    drugs: ['enalapril', 'espironolactona'],
+    severity: 'Moderate',
+    title: 'Hipercalemia',
+    effect: 'Aumento do efeito hipercalêmico (potássio alto).',
+    recommendation: 'Monitorar níveis séricos de potássio, principalmente na ICC.'
+  },
+  {
+    drugs: ['captopril', 'aas'],
+    severity: 'Moderate',
+    title: 'Redução do Efeito Anti-hipertensivo',
+    effect: 'Diminuição da resposta anti-hipertensiva.',
+    recommendation: 'Monitorar pressão arterial.'
+  },
+  {
+    drugs: ['captopril', 'alopurinol'],
+    severity: 'Major',
+    title: 'Reações Alérgicas',
+    effect: 'Aumento do risco de reações de hipersensibilidade.',
+    recommendation: 'Observar evidências de hipersensibilidade por no mínimo 5 semanas.'
+  },
+  // CARBAMAZEPINA
+  {
+    drugs: ['carbamazepina', 'anticoncepcional'],
+    severity: 'Major',
+    title: 'Falha Contraceptiva',
+    effect: 'Redução da eficácia do anticoncepcional.',
+    recommendation: 'Utilizar método contraceptivo alternativo.'
+  },
+  // CIPROFLOXACINO
+  {
+    drugs: ['ciprofloxacino', 'tizanidina'],
+    severity: 'Contraindicated',
+    title: 'Hipotensão e Sedação',
+    effect: 'Aumento dos níveis de tizanidina causando hipotensão e sedação severas.',
+    recommendation: 'O uso concomitante é contraindicado.'
+  },
+  {
+    drugs: ['ciprofloxacino', 'insulina'],
+    severity: 'Major',
+    title: 'Alteração Glicêmica',
+    effect: 'Mudança na glicose sanguínea (risco de hiper ou hipoglicemia).',
+    recommendation: 'Monitorar glicemia. Se ocorrer hipoglicemia, interromper fluoroquinolona.'
+  },
+  {
+    drugs: ['ciprofloxacino', 'glibenclamida'],
+    severity: 'Major',
+    title: 'Hipoglicemia',
+    effect: 'Potencialização do efeito hipoglicemiante.',
+    recommendation: 'Monitorar glicemia rigorosamente.'
+  },
+  // CLOPIDOGREL
+  {
+    drugs: ['clopidogrel', 'omeprazol'],
+    severity: 'Major',
+    title: 'Redução da Eficácia do Clopidogrel',
+    effect: 'Diminuição do efeito antiplaquetário (risco de trombose/infarto).',
+    recommendation: 'Deve-se evitar o uso concomitante. Preferir pantoprazol se necessário.'
+  },
+  {
+    drugs: ['clopidogrel', 'aas'],
+    severity: 'Moderate',
+    title: 'Risco Hemorrágico',
+    effect: 'Aumento do risco de sangramento.',
+    recommendation: 'Monitorar evidências de sangramento.'
+  },
+  // DIGOXINA
+  {
+    drugs: ['digoxina', 'claritromicina'],
     severity: 'Moderate',
     title: 'Toxicidade Digitálica',
-    description: 'Amiodarona aumenta a concentração sérica de digoxina. Recomenda-se reduzir a dose de digoxina em 50% e monitorar níveis.'
+    effect: 'Bradicardia, distúrbios do SNC, náuseas e vômitos.',
+    recommendation: 'Monitorar ocorrência de efeitos tóxicos da digoxina.'
   },
+  {
+    drugs: ['digoxina', 'furosemida'],
+    severity: 'Moderate',
+    title: 'Toxicidade Digitálica (via Hipocalemia)',
+    effect: 'Hipocalemia induzida pelo diurético aumenta risco de toxicidade digitálica.',
+    recommendation: 'Monitorar potássio sérico.'
+  },
+  // FENITOÍNA
+  {
+    drugs: ['fenitoína', 'fluconazol'],
+    severity: 'Moderate',
+    title: 'Toxicidade da Fenitoína',
+    effect: 'Aumento do risco de toxicidade da fenitoína (ataxia, tremores).',
+    recommendation: 'Monitorar níveis séricos e sinais de toxicidade.'
+  },
+  // FLUCONAZOL
+  {
+    drugs: ['fluconazol', 'simvastatina'],
+    severity: 'Major',
+    title: 'Rabdomiólise',
+    effect: 'Aumento do risco de miopatia e rabdomiólise.',
+    recommendation: 'Suspender estatina durante tratamento com fluconazol ou monitorar CK.'
+  },
+  {
+    drugs: ['fluconazol', 'varfarina'],
+    severity: 'Major',
+    title: 'Hemorragia',
+    effect: 'Aumento do tempo de protrombina e risco de sangramento.',
+    recommendation: 'Ajustar dose da varfarina e monitorar INR.'
+  },
+  // FUROSEMIDA
   {
     drugs: ['furosemida', 'gentamicina'],
     severity: 'Moderate',
-    title: 'Ototoxicidade',
-    description: 'O uso concomitante de diuréticos de alça e aminoglicosídeos pode aumentar o risco de ototoxicidade (perda auditiva).'
+    title: 'Ototoxicidade e Nefrotoxicidade',
+    effect: 'Potencialização dos efeitos tóxicos.',
+    recommendation: 'Monitorar função renal e auditiva.'
+  },
+  // HEPARINA
+  {
+    drugs: ['heparina', 'aas'],
+    severity: 'Moderate',
+    title: 'Risco Hemorrágico',
+    effect: 'Potencialização do risco de sangramento.',
+    recommendation: 'Monitorar TTPa e sinais de sangramento.'
   },
   {
-    drugs: ['espironolactona', 'enalapril'],
+    drugs: ['heparina', 'alteplase'],
+    severity: 'Major',
+    title: 'Hemorragia Grave',
+    effect: 'Risco extremo de hemorragias.',
+    recommendation: 'Contraindicado se heparina usada nas últimas 48h com TTPa elevado.'
+  },
+  // METFORMINA
+  {
+    drugs: ['metformina', 'cefalexina'],
     severity: 'Moderate',
-    title: 'Hipercalemia',
-    description: 'Ambos os fármacos poupam potássio. O uso combinado aumenta risco de hipercalemia severa. Monitorar potássio sérico.'
+    title: 'Hipoglicemia',
+    effect: 'Aumento da concentração plasmática de metformina.',
+    recommendation: 'Monitorar glicemia.'
+  },
+  // METOCLOPRAMIDA
+  {
+    drugs: ['metoclopramida', 'haloperidol'],
+    severity: 'Major',
+    title: 'Reações Extrapiramidais',
+    effect: 'Risco de discinesia tardia e reações distônicas.',
+    recommendation: 'Não deve ser prescrito em combinação.'
+  },
+  // PARACETAMOL
+  {
+    drugs: ['paracetamol', 'varfarina'],
+    severity: 'Moderate',
+    title: 'Potencialização Anticoagulante',
+    effect: 'Aumento do INR e risco de sangramento em doses altas/crônicas de paracetamol.',
+    recommendation: 'Monitorar INR se uso > 1.3g/dia de paracetamol.'
+  },
+  // SILDENAFIL
+  {
+    drugs: ['sildenafil', 'nitroglicerina'],
+    severity: 'Contraindicated',
+    title: 'Hipotensão Grave',
+    effect: 'Vasodilatação periférica severa.',
+    recommendation: 'Uso deve ser evitado. Intervalo mínimo de 48h.'
   },
   {
-    drugs: ['espironolactona', 'losartana'],
-    severity: 'Moderate',
-    title: 'Hipercalemia',
-    description: 'Risco aumentado de elevação do potássio sérico. Monitorar função renal e eletrólitos.'
+    drugs: ['sildenafil', 'isordil'],
+    severity: 'Contraindicated',
+    title: 'Hipotensão Grave',
+    effect: 'Vasodilatação periférica severa.',
+    recommendation: 'Uso deve ser evitado.'
   },
+  // SINVASTATINA
   {
-    drugs: ['omeprazol', 'clopidogrel'],
+    drugs: ['simvastatina', 'claritromicina'],
     severity: 'Moderate',
-    title: 'Redução do Efeito Antiplaquetário',
-    description: 'Omeprazol pode inibir a ativação do clopidogrel (CYP2C19), reduzindo sua eficácia na prevenção de eventos trombóticos. Considerar pantoprazol.'
+    title: 'Rabdomiólise',
+    effect: 'Aumento do risco de rabdomiólise.',
+    recommendation: 'Suspender estatina ou monitorar CK.'
   },
+  // TRAMADOL
   {
     drugs: ['tramadol', 'fluoxetina'],
     severity: 'Major',
-    title: 'Síndrome Serotoninérgica / Risco de Convulsão',
-    description: 'Ambos afetam a serotonina e diminuem o limiar convulsivo. Risco de síndrome serotoninérgica (agitação, tremor, hipertermia).'
-  },
-  {
-    drugs: ['tramadol', 'sertralina'],
-    severity: 'Major',
     title: 'Síndrome Serotoninérgica',
-    description: 'Risco aumentado de toxicidade serotoninérgica.'
+    effect: 'Risco de convulsão, hipertensão, hipertermia.',
+    recommendation: 'Monitorar pressão arterial, FC e sinais clínicos.'
   },
   {
-    drugs: ['captopril', 'potassio'],
+    drugs: ['tramadol', 'amitriptilina'],
+    severity: 'Major',
+    title: 'Convulsões',
+    effect: 'Potencialização de crises convulsivas.',
+    recommendation: 'Considerar modificação na terapia.'
+  },
+  {
+    drugs: ['tramadol', 'ondansetrona'],
+    severity: 'Major',
+    title: 'Redução de Eficácia / Risco Serotoninérgico',
+    effect: 'Pode reduzir efeito analgésico do tramadol e aumentar risco serotoninérgico.',
+    recommendation: 'Evitar uso concomitante se possível.'
+  },
+  // VANCOMICINA
+  {
+    drugs: ['vancomicina', 'piperacilina'],
     severity: 'Moderate',
-    title: 'Hipercalemia',
-    description: 'IECA reduz a excreção de potássio. Suplementação deve ser feita com cautela.'
+    title: 'Nefrotoxicidade',
+    effect: 'Aumento do risco de lesão renal aguda.',
+    recommendation: 'Monitorar função renal diariamente.'
+  },
+  {
+    drugs: ['vancomicina', 'furosemida'],
+    severity: 'Moderate',
+    title: 'Ototoxicidade',
+    effect: 'Aumento do risco de perda auditiva.',
+    recommendation: 'Monitorar função auditiva e renal.'
   }
 ];
 
@@ -766,32 +1031,32 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
   };
 
   const DrugInteractionsPage = () => {
-    const meds = patient.prescriptions.map(p => p.name.toLowerCase());
+    const normalizeStr = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const meds = patient.prescriptions.map(p => normalizeStr(p.name));
+
     const detectedInteractions = useMemo(() => {
       const interactions: any[] = [];
       if (meds.length < 2) return interactions;
 
-      // Simple pairwise check against mock database
-      // In a real app, you would send 'meds' to an API
+      // Check against INTERACTION_DB from PDF guide
       INTERACTION_DB.forEach(interaction => {
-        const d1 = interaction.drugs[0];
-        const d2 = interaction.drugs[1];
+        const d1 = normalizeStr(interaction.drugs[0]);
+        const d2 = normalizeStr(interaction.drugs[1]);
 
-        // Check if the patient has both drugs in the pair
-        // We use 'includes' to match partial names (e.g., "Aspirina 100mg" matches "aspirina")
+        // Check if the patient has both drugs in the pair (partial match allowed)
         const hasD1 = meds.some(m => m.includes(d1));
         const hasD2 = meds.some(m => m.includes(d2));
 
         if (hasD1 && hasD2) {
-            // Identify which specific meds triggered it
-            const trigger1 = patient.prescriptions.find(p => p.name.toLowerCase().includes(d1))?.name;
-            const trigger2 = patient.prescriptions.find(p => p.name.toLowerCase().includes(d2))?.name;
+            // Identify which specific meds triggered it for display
+            const trigger1 = patient.prescriptions.find(p => normalizeStr(p.name).includes(d1))?.name;
+            const trigger2 = patient.prescriptions.find(p => normalizeStr(p.name).includes(d2))?.name;
             interactions.push({ ...interaction, trigger1, trigger2 });
         }
       });
 
       return interactions;
-    }, [meds]);
+    }, [meds, patient.prescriptions]);
 
     return (
       <div className="space-y-6">
@@ -799,8 +1064,8 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
             <div className="p-4 bg-blue-50 text-blue-800 rounded-lg mb-6 text-sm flex items-start gap-3 border border-blue-100">
                <AlertTriangle className="flex-shrink-0 mt-0.5" size={18} />
                <div>
-                 <p className="font-bold mb-1">Aviso Importante</p>
-                 <p>Esta ferramenta utiliza um banco de dados interno simplificado para detectar interações comuns graves. Ela <strong>não substitui</strong> o julgamento clínico e não cobre todas as interações possíveis. Para uma análise completa, consulte o 
+                 <p className="font-bold mb-1">Base de Dados: Guia de Interação Medicamentosa (RioSaúde/UFG)</p>
+                 <p>Esta ferramenta utiliza dados extraídos do guia oficial. Ela detecta interações comuns e graves, mas <strong>não substitui</strong> o julgamento clínico. Para análise completa de fármacos raros, consulte o 
                  <a href="https://www.drugs.com/drug_interactions.html" target="_blank" rel="noreferrer" className="underline font-bold ml-1">Drugs.com</a>.</p>
                </div>
             </div>
@@ -819,25 +1084,34 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                  <h3 className="font-bold text-slate-800 border-b pb-2">Interações Detectadas ({detectedInteractions.length})</h3>
                  {detectedInteractions.map((item, idx) => (
                     <div key={idx} className={`border-l-4 p-4 rounded-r-lg shadow-sm bg-white border ${
-                        item.severity === 'Major' ? 'border-l-red-500 border-red-100' : 
+                        item.severity === 'Major' || item.severity === 'Contraindicated' ? 'border-l-red-500 border-red-100' : 
                         item.severity === 'Moderate' ? 'border-l-amber-500 border-amber-100' : 'border-l-blue-500 border-blue-100'
                     }`}>
                        <div className="flex justify-between items-start mb-2">
                           <div className="font-bold text-lg text-slate-800 flex items-center gap-2">
-                              {item.severity === 'Major' && <AlertTriangle size={20} className="text-red-500" />}
+                              {(item.severity === 'Major' || item.severity === 'Contraindicated') && <AlertTriangle size={20} className="text-red-500" />}
                               {item.title}
                           </div>
                           <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                              item.severity === 'Major' ? 'bg-red-100 text-red-700' : 
+                              item.severity === 'Major' || item.severity === 'Contraindicated' ? 'bg-red-100 text-red-700' : 
                               item.severity === 'Moderate' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'
                           }`}>
-                              {item.severity === 'Major' ? 'Grave' : item.severity === 'Moderate' ? 'Moderada' : 'Leve'}
+                              {item.severity === 'Major' ? 'Grave' : item.severity === 'Contraindicated' ? 'Contraindicado' : item.severity === 'Moderate' ? 'Moderada' : 'Leve'}
                           </span>
                        </div>
-                       <div className="text-sm font-mono text-slate-500 mb-2">
+                       <div className="text-sm font-mono text-slate-500 mb-3">
                           Entre: <span className="font-bold text-slate-700">{item.trigger1}</span> + <span className="font-bold text-slate-700">{item.trigger2}</span>
                        </div>
-                       <p className="text-slate-700 text-sm leading-relaxed">{item.description}</p>
+                       <div className="grid md:grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="font-bold text-slate-700 block mb-1">Efeito Clínico:</span>
+                            <p className="text-slate-600">{item.effect}</p>
+                          </div>
+                          <div>
+                             <span className="font-bold text-slate-700 block mb-1">Recomendação/Conduta:</span>
+                             <p className="text-slate-800 bg-slate-50 p-2 rounded border border-slate-100">{item.recommendation}</p>
+                          </div>
+                       </div>
                     </div>
                  ))}
               </div>
@@ -845,7 +1119,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                 <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-lg">
                     <CheckCircle size={48} className="mx-auto text-green-500 mb-3" />
                     <h3 className="text-lg font-medium text-slate-700">Nenhuma interação crítica detectada</h3>
-                    <p className="text-slate-500 text-sm max-w-md mx-auto mt-2">Com base nas medicações cadastradas e no nosso banco de dados interno, não foram encontradas interações de alto risco.</p>
+                    <p className="text-slate-500 text-sm max-w-md mx-auto mt-2">Com base nas medicações cadastradas e no guia de referência, não foram encontradas interações de alto risco conhecidas nesta lista.</p>
                 </div>
             )}
 

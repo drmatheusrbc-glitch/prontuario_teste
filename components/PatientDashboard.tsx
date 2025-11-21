@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FileText, Stethoscope, Activity, 
   FlaskConical, Image as ImageIcon, Pill, BarChart2, 
   AlertTriangle, Plus, Save, Trash2, Download, CheckCircle, Clock, X, Menu,
-  Printer, ClipboardList, Paperclip
+  Printer, ClipboardList, Paperclip, CloudLightning
 } from 'lucide-react';
 import { Patient, Sexo, LAB_FIELDS, VitalSign, Evolution, LabResult, Medication, ImagingExam, Diagnosis } from '../types';
 import { Card, Button, Input, TextArea } from './UiComponents';
@@ -48,7 +48,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
   }, [activeTab]);
 
   if (!patient) {
-    return <div className="p-8 text-center">Paciente não encontrado.</div>;
+    return <div className="p-8 text-center">Paciente não encontrado ou carregando...</div>;
   }
 
   const handleSaveAnamnesis = (field: keyof Patient, value: string) => {
@@ -1102,20 +1102,28 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
             >
               <Menu size={24} />
             </button>
-            <div className="font-semibold text-slate-700 truncate max-w-[200px] md:max-w-none">
-              {activeTab === 'dashboard' ? 'Dashboard' : 
-               activeTab === 'prontuario' ? 'Prontuário Diário' :
-               activeTab === 'anamnese' ? 'Anamnese' :
-               activeTab === 'diagnosticos' ? 'Diagnósticos' :
-               activeTab === 'evolucao' ? 'Evolução e Conduta' :
-               activeTab === 'sinais' ? 'Sinais Vitais' :
-               activeTab === 'labs' ? 'Laboratório' :
-               activeTab === 'imagem' ? 'Imagens' :
-               activeTab === 'medicacoes' ? 'Medicações' :
-               activeTab === 'graficos' ? 'Gráficos' : 'Alertas'}
+            <div className="flex flex-col md:flex-row md:items-center gap-1">
+              <div className="font-semibold text-slate-700 truncate max-w-[150px] md:max-w-none">
+                {activeTab === 'dashboard' ? 'Dashboard' : 
+                activeTab === 'prontuario' ? 'Prontuário Diário' :
+                activeTab === 'anamnese' ? 'Anamnese' :
+                activeTab === 'diagnosticos' ? 'Diagnósticos' :
+                activeTab === 'evolucao' ? 'Evolução e Conduta' :
+                activeTab === 'sinais' ? 'Sinais Vitais' :
+                activeTab === 'labs' ? 'Laboratório' :
+                activeTab === 'imagem' ? 'Imagens' :
+                activeTab === 'medicacoes' ? 'Medicações' :
+                activeTab === 'graficos' ? 'Gráficos' : 'Alertas'}
+              </div>
+              <span className="md:hidden inline-flex w-fit items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 text-[9px] font-medium border border-green-200">
+                <CloudLightning size={8} /> Nuvem
+              </span>
             </div>
           </div>
           <div className="text-xs md:text-sm text-slate-500 flex items-center gap-2">
+             <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-[10px] font-medium border border-green-200 mr-2" title="Dados salvos na nuvem">
+                <CloudLightning size={10} /> Nuvem
+             </span>
             <span className="hidden md:inline">Médico Logado</span>
             <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 font-bold">M</div>
           </div>

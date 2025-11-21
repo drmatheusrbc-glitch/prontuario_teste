@@ -1,10 +1,9 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Patient, Sexo } from '../types';
 import { Card, Input, Select, Button } from './UiComponents';
 import { calculateBMI, calculateAge } from '../services/utils';
-import { UserPlus, Users, Activity, LogOut, Trash2 } from 'lucide-react';
+import { UserPlus, Users, Activity, LogOut, Trash2, Database, Download, Upload, X, Cloud, CloudLightning } from 'lucide-react';
 
 interface RegistrationProps {
   onAddPatient: (p: Patient) => void;
@@ -114,28 +113,108 @@ interface PatientListProps {
   patients: Patient[];
   onDelete: (id: string) => void;
   onLogout: () => void;
+  onImport: (data: Patient[]) => void;
 }
 
-export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, onLogout }) => {
+export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, onLogout, onImport }) => {
   const navigate = useNavigate();
+  const [showDataModal, setShowDataModal] = useState(false);
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if(window.confirm('Tem certeza que deseja excluir este paciente e todos os seus dados?')) {
-      onDelete(id);
+    // Let parent handle confirmation
+    onDelete(id);
+  };
+
+  const handleExport = () => {
+    const dataStr = JSON.stringify(patients, null, 2);
+    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = `medflow_backup_${new Date().toISOString().slice(0,10)}.json`;
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+  };
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileReader = new FileReader();
+    if(e.target.files && e.target.files[0]) {
+      fileReader.readAsText(e.target.files[0], "UTF-8");
+      fileReader.onload = (event) => {
+        try {
+          if(event.target?.result) {
+             const parsed = JSON.parse(event.target.result as string);
+             onImport(parsed);
+             setShowDataModal(false);
+          }
+        } catch(err) {
+          alert("Erro ao ler arquivo: formato inválido.");
+        }
+      };
     }
   };
 
   return (
     <div className="min-h-screen bg-slate-50">
-       <header className="bg-white shadow-sm border-b border-slate-200">
-         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-           <h1 className="text-2xl font-bold text-blue-600 flex items-center gap-2">
-             <Activity /> MedFlow
-           </h1>
-           <Button onClick={onLogout} variant="outline" className="text-sm flex items-center gap-2 text-red-600 hover:bg-red-50 border-red-200">
-             <LogOut size={16} /> Sair
-           </Button>
+       {showDataModal && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md relative animate-fade-in-up">
+               <button onClick={() => setShowDataModal(false)} className="absolute top-4 right-4 text-slate-400 hover:text-slate-600">
+                 <X size={20} />
+               </button>
+               
+               <div className="flex items-center gap-3 mb-4 text-blue-600">
+                  <div className="p-2 bg-blue-50 rounded-lg"><Database size={24} /></div>
+                  <h3 className="text-xl font-bold text-slate-800">Backup / Migração</h3>
+               </div>
+               
+               <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-6 text-sm text-blue-800">
+                 <p className="font-bold mb-1 flex items-center gap-2"><Cloud size={14}/> Nuvem Ativada</p>
+                 <p>Seus dados são salvos automaticamente. Use esta tela para baixar uma cópia de segurança ou importar dados antigos.</p>
+               </div>
+
+               <div className="space-y-4">
+                 <div>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Exportar</label>
+                   <Button className="w-full flex items-center justify-center gap-2 py-3" onClick={handleExport}>
+                     <Download size={18} /> Baixar Backup (JSON)
+                   </Button>
+                 </div>
+
+                 <div className="relative pt-4 border-t border-slate-100">
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Importar para Nuvem</label>
+                   <div className="relative">
+                     <Button variant="outline" className="w-full flex items-center justify-center gap-2 py-3 border-dashed border-2 hover:bg-blue-50 hover:border-blue-200">
+                       <Upload size={18} /> Restaurar Backup
+                     </Button>
+                     <input type="file" accept=".json" onChange={handleImport} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                   </div>
+                   <p className="text-xs text-slate-500 mt-1 text-center">Os dados importados serão adicionados ao banco na nuvem.</p>
+                 </div>
+               </div>
+            </div>
+         </div>
+       )}
+
+       <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
+         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
+           <div className="flex items-center gap-2">
+             <h1 className="text-2xl font-bold text-blue-600 flex items-center gap-2">
+               <Activity /> MedFlow
+             </h1>
+             <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-[10px] font-medium border border-green-200" title="Conectado à Nuvem">
+                <CloudLightning size={10} /> Nuvem
+             </span>
+           </div>
+           <div className="flex gap-2 w-full md:w-auto justify-end">
+             <Button onClick={() => setShowDataModal(true)} variant="outline" className="text-sm flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
+               <Database size={16} /> <span className="inline">Backup</span>
+             </Button>
+             <Button onClick={onLogout} variant="outline" className="text-sm flex items-center gap-2 text-red-600 hover:bg-red-50 border-red-200">
+               <LogOut size={16} /> <span className="hidden sm:inline">Sair</span>
+             </Button>
+           </div>
          </div>
        </header>
 
@@ -174,7 +253,7 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
            ))}
            {patients.length === 0 && (
              <div className="col-span-full text-center py-12 bg-white rounded-lg border border-dashed border-slate-300">
-                <p className="text-slate-500">Nenhum paciente cadastrado.</p>
+                <p className="text-slate-500">Nenhum paciente cadastrado na nuvem.</p>
                 <Button variant="outline" className="mt-4" onClick={() => navigate('/register')}>Cadastrar Primeiro Paciente</Button>
              </div>
            )}

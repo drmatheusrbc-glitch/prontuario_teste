@@ -1,61 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Patient, Sexo } from './types';
+import { Patient } from './types';
 import { PatientRegistration, PatientList } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
 import { Card, Input, Button } from './components/UiComponents';
-import { Activity } from 'lucide-react';
-
-// Initial Mock Data (Used only if localStorage is empty)
-const MOCK_PATIENTS: Patient[] = [
-  {
-    id: '1',
-    firstName: 'João',
-    lastName: 'Silva',
-    hospital: 'Santa Casa',
-    bed: '204-A',
-    admissionDate: '2023-10-25',
-    sex: Sexo.MASCULINO,
-    ethnicity: 'Parda',
-    birthDate: '1958-05-15',
-    age: 65,
-    city: 'São Paulo',
-    state: 'SP',
-    address: 'Rua das Flores, 123',
-    phone: '(11) 99999-9999',
-    occupation: 'Aposentado',
-    weight: 78,
-    height: 1.75,
-    bmi: 25.47,
-    hpp: 'HAS há 20 anos, DM2 há 10 anos.',
-    continuousMeds: 'Losartana 50mg 12/12h, Metformina 850mg 3x/dia',
-    habits: 'Ex-tabagista (20 anos/maço). Nega etilismo.',
-    hda: 'Paciente deu entrada no PS com dispneia aos médios esforços...',
-    allergies: 'Dipirona',
-    diagnostics: [
-      { id: '1', name: 'Pneumonia Comunitária', date: '2023-10-25', status: 'Ativo' },
-      { id: '2', name: 'Descompensação de IC', date: '2023-10-25', status: 'Ativo' }
-    ],
-    evolutions: [
-        { id: '101', date: '2023-10-26T09:00', content: 'Paciente estável, refere melhora da dispneia. Aceitando dieta.' }
-    ],
-    vitalSigns: [
-        { date: '2023-10-26T08:00', fc: 82, fr: 18, pas: 130, pad: 80, sato2: 96, dextro: 110 },
-        { date: '2023-10-25T20:00', fc: 88, fr: 22, pas: 140, pad: 90, sato2: 92, dextro: 125 }
-    ],
-    labResults: [
-        { date: '2023-10-25', values: { hemoglobina: 13.5, leucocitos: 14500, creatinina: 1.2 } }
-    ],
-    prescriptions: [
-        { id: '1', name: 'Ceftriaxona', route: 'IV', dose: '1g', frequency: '12/12h', startDate: '2023-10-25', isContinuous: false, endDate: '2023-11-01' }
-    ],
-    imaging: [
-      { id: 'img1', date: '2023-10-25', description: 'Raio-X de Tórax: Opacidade em base direita compatível com processo pneumônico.', attachmentName: 'rx_exemplo_demo.jpg' }
-    ],
-    alerts: [{ id: '1', text: 'Solicitar ECOcardiograma', isResolved: false }]
-  }
-];
+import { Activity, Loader2, AlertCircle } from 'lucide-react';
+import { getPatients, savePatient, deletePatient } from './services/patientService';
 
 const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
@@ -66,7 +16,7 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
     
-    // Ajuste: Converte email para minúsculo para evitar erro no mobile onde o teclado capitaliza a primeira letra
+    // Case insensitive check for email
     if (email.trim().toLowerCase() === 'drmatheusrbc@gmail.com' && password === '150199') {
       onLogin();
     } else {
@@ -94,7 +44,6 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
               onChange={e => setEmail(e.target.value)} 
               required 
               className="bg-white"
-              // Propriedades para melhorar usabilidade no mobile
               autoCapitalize="none"
               autoCorrect="off"
               autoComplete="email"
@@ -129,51 +78,121 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 };
 
 const App: React.FC = () => {
-  // Load Auth State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     return localStorage.getItem('medflow_auth') === 'true';
   });
 
-  // Load Patients State
-  const [patients, setPatients] = useState<Patient[]>(() => {
-    const saved = localStorage.getItem('medflow_patients');
-    return saved ? JSON.parse(saved) : MOCK_PATIENTS;
-  });
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [syncError, setSyncError] = useState('');
 
-  // Persist Auth
+  // Persist Auth state
   useEffect(() => {
     localStorage.setItem('medflow_auth', String(isAuthenticated));
   }, [isAuthenticated]);
 
-  // Persist Patients
+  // Fetch Patients from Supabase when authenticated
   useEffect(() => {
-    localStorage.setItem('medflow_patients', JSON.stringify(patients));
-  }, [patients]);
+    if (isAuthenticated) {
+      loadData();
+    }
+  }, [isAuthenticated]);
 
-  const handleAddPatient = (newPatient: Patient) => {
+  const loadData = async () => {
+    setLoading(true);
+    setSyncError('');
+    try {
+      const data = await getPatients();
+      setPatients(data);
+    } catch (err) {
+      console.error(err);
+      setSyncError('Erro ao carregar dados da nuvem. Verifique sua conexão ou se a tabela "patients" foi criada no Supabase.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddPatient = async (newPatient: Patient) => {
+    // Optimistic UI update
     setPatients(prev => [newPatient, ...prev]);
+    try {
+      await savePatient(newPatient);
+    } catch (err) {
+      setSyncError('Erro ao salvar paciente. Tente novamente.');
+      // Rollback could go here, but for simplicity we keep local state and error message
+    }
   };
 
-  const handleUpdatePatient = (updatedPatient: Patient) => {
+  const handleUpdatePatient = async (updatedPatient: Patient) => {
     setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
+    try {
+      await savePatient(updatedPatient);
+    } catch (err) {
+      setSyncError('Erro ao atualizar paciente.');
+    }
   };
 
-  const handleDeletePatient = (id: string) => {
-    setPatients(prev => prev.filter(p => p.id !== id));
+  const handleDeletePatient = async (id: string) => {
+    if(window.confirm('Tem certeza que deseja excluir este paciente e todos os seus dados?')) {
+      setPatients(prev => prev.filter(p => p.id !== id));
+      try {
+        await deletePatient(id);
+      } catch (err) {
+        setSyncError('Erro ao excluir paciente da nuvem.');
+        loadData(); // Reload to restore sync
+      }
+    }
+  };
+
+  const handleImportPatients = async (data: Patient[]) => {
+    if (Array.isArray(data)) {
+      if (window.confirm(`Isso importará ${data.length} pacientes para o banco de dados na nuvem. Deseja continuar?`)) {
+         setLoading(true);
+         try {
+           // Process in parallel or serial
+           for (const p of data) {
+             await savePatient(p);
+           }
+           await loadData(); // Refresh from source of truth
+           alert('Importação para nuvem concluída com sucesso!');
+         } catch (err) {
+           alert('Erro durante a importação. Alguns dados podem não ter sido salvos.');
+         } finally {
+           setLoading(false);
+         }
+      }
+    } else {
+      alert('Formato de arquivo inválido.');
+    }
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
   };
 
+  if (isAuthenticated && loading && patients.length === 0) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center flex-col gap-4">
+        <Loader2 className="animate-spin text-blue-600" size={48} />
+        <p className="text-slate-500 font-medium">Carregando dados da nuvem...</p>
+      </div>
+    );
+  }
+
   return (
     <HashRouter>
+      {syncError && (
+        <div className="bg-red-50 text-red-700 p-3 text-center text-sm flex justify-center items-center gap-2 sticky top-0 z-[100]">
+          <AlertCircle size={16} /> {syncError}
+          <button onClick={loadData} className="underline ml-2">Tentar Novamente</button>
+        </div>
+      )}
       <Routes>
         <Route path="/login" element={!isAuthenticated ? <LoginScreen onLogin={() => setIsAuthenticated(true)} /> : <Navigate to="/" />} />
         
         <Route 
           path="/" 
-          element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={handleLogout} onImport={handleImportPatients} /> : <Navigate to="/login" />} 
         />
         
         <Route 

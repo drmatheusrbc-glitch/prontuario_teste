@@ -15,6 +15,7 @@ export interface VitalSign {
 }
 
 export interface LabResult {
+  id?: string; // Added ID for management
   date: string; // ISO string
   values: Record<string, number>; // key is exam name (e.g., 'hemoglobina'), value is result
 }

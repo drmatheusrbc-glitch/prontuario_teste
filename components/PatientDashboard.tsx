@@ -19,7 +19,7 @@ interface DashboardProps {
   updatePatient: (p: Patient) => void;
 }
 
-// --- MOCK INTERACTION DATABASE (DATA FROM PDF GUIDE) ---
+// --- INTERACTION DATABASE (DATA FROM PDF GUIDE) ---
 const INTERACTION_DB = [
   // ANFOTERICINA B
   {
@@ -38,11 +38,25 @@ const INTERACTION_DB = [
     recommendation: 'Deve-se monitorar a função renal.'
   },
   {
+    drugs: ['gentamicina', 'furosemida'],
+    severity: 'Moderate',
+    title: 'Nefrotoxicidade',
+    effect: 'Aumento do risco de nefrotoxicidade.',
+    recommendation: 'Deve-se monitorar a função renal.'
+  },
+  {
     drugs: ['amicacina', 'ibuprofeno'],
     severity: 'Moderate',
     title: 'Nefrotoxicidade e Ototoxicidade',
     effect: 'Pode aumentar os efeitos nefrotóxicos e ototóxicos da amicacina.',
     recommendation: 'Os intervalos de dosagem da amicacina devem ser aumentados. Monitorar função renal.'
+  },
+  {
+    drugs: ['amicacina', 'cefalotina'],
+    severity: 'Moderate',
+    title: 'Nefrotoxicidade',
+    effect: 'Aumento do risco de nefrotoxicidade.',
+    recommendation: 'Monitorar aumento dos efeitos nefrotóxicos.'
   },
   // AMIODARONA
   {
@@ -74,6 +88,13 @@ const INTERACTION_DB = [
     recommendation: 'Dose de sinvastatina não deve exceder 20mg/dia. Monitorar sintomas de miopatia.'
   },
   {
+    drugs: ['amiodarona', 'atorvastatina'],
+    severity: 'Major',
+    title: 'Miopatia e Rabdomiólise',
+    effect: 'Aumento da concentração plasmática da estatina podendo levar a miopatia e rabdomiólise.',
+    recommendation: 'Avaliar substituição por outra estatina ou monitorar sintomas.'
+  },
+  {
     drugs: ['amiodarona', 'digoxina'],
     severity: 'Major',
     title: 'Toxicidade Digitálica',
@@ -88,7 +109,7 @@ const INTERACTION_DB = [
     recommendation: 'Monitorar frequência cardíaca e níveis séricos de potássio e magnésio.'
   },
   {
-    drugs: ['amiodarona', 'warfarina'], // varfarina mapped
+    drugs: ['amiodarona', 'warfarina'],
     severity: 'Major',
     title: 'Risco Hemorrágico',
     effect: 'Potencialização do efeito anticoagulante.',
@@ -101,6 +122,20 @@ const INTERACTION_DB = [
     effect: 'Potencialização do efeito anticoagulante.',
     recommendation: 'Redução de 30 a 50% da dose da varfarina e monitorar INR.'
   },
+  {
+    drugs: ['amiodarona', 'levofloxacino'],
+    severity: 'Major',
+    title: 'Arritmias Ventriculares',
+    effect: 'Risco de arritmias ventriculares.',
+    recommendation: 'Uso concomitante deve ser feito com cautela. Observar risco-benefício.'
+  },
+  {
+    drugs: ['amiodarona', 'diltiazem'],
+    severity: 'Major',
+    title: 'Bradicardia e Parada Sinusal',
+    effect: 'Bradicardia, parada sinusal e diminuição do débito cardíaco.',
+    recommendation: 'Considerar modificação da terapia e monitorar toxicidade.'
+  },
   // AMITRIPTILINA
   {
     drugs: ['amitriptilina', 'fluconazol'],
@@ -109,13 +144,35 @@ const INTERACTION_DB = [
     effect: 'Aumento dos níveis séricos dos antidepressivos tricíclicos podendo causar arritmias.',
     recommendation: 'Avaliar ajuste de dose do antidepressivo.'
   },
+  {
+    drugs: ['amitriptilina', 'tramadol'],
+    severity: 'Contraindicated',
+    title: 'Risco de Convulsões',
+    effect: 'Risco de neuroexcitabilidade e diminuição do limiar convulsivo (Síndrome Serotoninérgica).',
+    recommendation: 'Deve-se evitar essa combinação.'
+  },
+  // AMPICILINA
+  {
+    drugs: ['ampicilina', 'alopurinol'],
+    severity: 'Moderate',
+    title: 'Hipersensibilidade Cutânea',
+    effect: 'Aumento da incidência de reações de hipersensibilidade (rash cutâneo).',
+    recommendation: 'Monitorar o aumento da incidência de reações.'
+  },
   // ANLODIPINO
   {
     drugs: ['anlodipino', 'simvastatina'],
-    severity: 'Moderate',
-    title: 'Miopatia',
-    effect: 'Aumento da exposição à sinvastatina. Risco de miopatia.',
+    severity: 'Major',
+    title: 'Miopatia e Rabdomiólise',
+    effect: 'Aumento da concentração plasmática da estatina podendo levar a miopatia.',
     recommendation: 'Limitar dose de sinvastatina a 20mg se uso concomitante.'
+  },
+  {
+    drugs: ['anlodipino', 'carbamazepina'],
+    severity: 'Moderate',
+    title: 'Redução do Efeito Anti-hipertensivo',
+    effect: 'Diminuição do efeito terapêutico do anlodipino.',
+    recommendation: 'Monitorar a pressão arterial.'
   },
   // ATENOLOL / BETA-BLOQUEADORES
   {
@@ -141,7 +198,7 @@ const INTERACTION_DB = [
     recommendation: 'Deve-se evitar essa combinação.'
   },
   {
-    drugs: ['azitromicina', 'warfarina'],
+    drugs: ['azitromicina', 'varfarina'],
     severity: 'Major',
     title: 'Risco de Sangramento',
     effect: 'Aumento dos efeitos do anticoagulante.',
@@ -170,6 +227,13 @@ const INTERACTION_DB = [
     recommendation: 'Monitorar pressão arterial.'
   },
   {
+    drugs: ['captopril', 'ibuprofeno'],
+    severity: 'Moderate',
+    title: 'Disfunção Renal e Redução Anti-hipertensiva',
+    effect: 'Diminuição da resposta anti-hipertensiva e aumento do risco de disfunção renal.',
+    recommendation: 'Monitorar pressão arterial e função renal.'
+  },
+  {
     drugs: ['captopril', 'alopurinol'],
     severity: 'Major',
     title: 'Reações Alérgicas',
@@ -178,11 +242,18 @@ const INTERACTION_DB = [
   },
   // CARBAMAZEPINA
   {
-    drugs: ['carbamazepina', 'anticoncepcional'],
-    severity: 'Major',
-    title: 'Falha Contraceptiva',
-    effect: 'Redução da eficácia do anticoncepcional.',
-    recommendation: 'Utilizar método contraceptivo alternativo.'
+    drugs: ['carbamazepina', 'diltiazem'],
+    severity: 'Moderate',
+    title: 'Toxicidade da Carbamazepina',
+    effect: 'Aumento dos efeitos adversos/tóxicos da carbamazepina.',
+    recommendation: 'Monitorar efeitos tóxicos (ataxia, sonolência).'
+  },
+  {
+    drugs: ['carbamazepina', 'varfarina'],
+    severity: 'Moderate',
+    title: 'Alteração Anticoagulante',
+    effect: 'Diminuição ou alteração do efeito anticoagulante.',
+    recommendation: 'Monitorar INR e ajustar dose da varfarina.'
   },
   // CIPROFLOXACINO
   {
@@ -205,6 +276,13 @@ const INTERACTION_DB = [
     title: 'Hipoglicemia',
     effect: 'Potencialização do efeito hipoglicemiante.',
     recommendation: 'Monitorar glicemia rigorosamente.'
+  },
+  {
+    drugs: ['ciprofloxacino', 'simvastatina'],
+    severity: 'Major',
+    title: 'Miopatia e Rabdomiólise',
+    effect: 'Aumento da concentração plasmática da estatina.',
+    recommendation: 'Monitorar dores musculares e CK. Descontinuar estatina se necessário.'
   },
   // CLOPIDOGREL
   {
@@ -235,6 +313,13 @@ const INTERACTION_DB = [
     title: 'Toxicidade Digitálica (via Hipocalemia)',
     effect: 'Hipocalemia induzida pelo diurético aumenta risco de toxicidade digitálica.',
     recommendation: 'Monitorar potássio sérico.'
+  },
+  {
+    drugs: ['digoxina', 'amiodarona'],
+    severity: 'Major',
+    title: 'Toxicidade Digitálica',
+    effect: 'Aumento dos níveis séricos da digoxina.',
+    recommendation: 'Reduzir dose da digoxina.'
   },
   // FENITOÍNA
   {
@@ -314,20 +399,20 @@ const INTERACTION_DB = [
     effect: 'Vasodilatação periférica severa.',
     recommendation: 'Uso deve ser evitado. Intervalo mínimo de 48h.'
   },
-  {
-    drugs: ['sildenafil', 'isordil'],
-    severity: 'Contraindicated',
-    title: 'Hipotensão Grave',
-    effect: 'Vasodilatação periférica severa.',
-    recommendation: 'Uso deve ser evitado.'
-  },
   // SINVASTATINA
   {
     drugs: ['simvastatina', 'claritromicina'],
-    severity: 'Moderate',
+    severity: 'Major',
     title: 'Rabdomiólise',
     effect: 'Aumento do risco de rabdomiólise.',
     recommendation: 'Suspender estatina ou monitorar CK.'
+  },
+  {
+    drugs: ['simvastatina', 'diltiazem'],
+    severity: 'Major',
+    title: 'Rabdomiólise',
+    effect: 'Aumento do risco de rabdomiólise.',
+    recommendation: 'Evitar uso concomitante ou monitorar toxicidade.'
   },
   // TRAMADOL
   {
@@ -351,6 +436,13 @@ const INTERACTION_DB = [
     effect: 'Pode reduzir efeito analgésico do tramadol e aumentar risco serotoninérgico.',
     recommendation: 'Evitar uso concomitante se possível.'
   },
+  {
+    drugs: ['tramadol', 'fentanil'],
+    severity: 'Major',
+    title: 'Depressão Respiratória e SNC',
+    effect: 'Risco de convulsão, depressão do SNC e depressão respiratória.',
+    recommendation: 'Evitar uso concomitante.'
+  },
   // VANCOMICINA
   {
     drugs: ['vancomicina', 'piperacilina'],
@@ -365,6 +457,37 @@ const INTERACTION_DB = [
     title: 'Ototoxicidade',
     effect: 'Aumento do risco de perda auditiva.',
     recommendation: 'Monitorar função auditiva e renal.'
+  },
+  // HIDROCLOROTIAZIDA
+  {
+    drugs: ['hidroclorotiazida', 'lítio'],
+    severity: 'Major',
+    title: 'Toxicidade por Lítio',
+    effect: 'Diminuição da excreção renal de lítio, aumentando toxicidade.',
+    recommendation: 'Monitorar níveis de lítio.'
+  },
+  {
+    drugs: ['hidroclorotiazida', 'digoxina'],
+    severity: 'Moderate',
+    title: 'Toxicidade Digitálica',
+    effect: 'Hipocalemia induzida aumenta risco de toxicidade da digoxina.',
+    recommendation: 'Monitorar potássio e magnésio.'
+  },
+  // LINEZOLIDA
+  {
+    drugs: ['linezolida', 'amitriptilina'],
+    severity: 'Major',
+    title: 'Síndrome Serotoninérgica',
+    effect: 'Hipertermia, espasmo muscular, convulsões.',
+    recommendation: 'Uso concomitante deve ser evitado.'
+  },
+  // NORADRENALINA
+  {
+    drugs: ['noradrenalina', 'clorpromazina'],
+    severity: 'Major',
+    title: 'Arritmias e Hipotensão',
+    effect: 'Efeito arritmogênico e hipotensão paradoxal.',
+    recommendation: 'Evitar uso concomitante.'
   }
 ];
 
@@ -1031,8 +1154,8 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
   };
 
   const DrugInteractionsPage = () => {
-    const normalizeStr = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const meds = patient.prescriptions.map(p => normalizeStr(p.name));
+    const normalizeStr = (str: string) => str.normalize('NFD').replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const meds = patient.prescriptions.map(p => ({ name: p.name, normalized: normalizeStr(p.name) }));
 
     const detectedInteractions = useMemo(() => {
       const interactions: any[] = [];
@@ -1044,19 +1167,21 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
         const d2 = normalizeStr(interaction.drugs[1]);
 
         // Check if the patient has both drugs in the pair (partial match allowed)
-        const hasD1 = meds.some(m => m.includes(d1));
-        const hasD2 = meds.some(m => m.includes(d2));
+        const hasD1 = meds.find(m => m.normalized.includes(d1) || d1.includes(m.normalized));
+        const hasD2 = meds.find(m => m.normalized.includes(d2) || d2.includes(m.normalized));
 
-        if (hasD1 && hasD2) {
+        if (hasD1 && hasD2 && hasD1.name !== hasD2.name) { // Ensure different meds
             // Identify which specific meds triggered it for display
-            const trigger1 = patient.prescriptions.find(p => normalizeStr(p.name).includes(d1))?.name;
-            const trigger2 = patient.prescriptions.find(p => normalizeStr(p.name).includes(d2))?.name;
-            interactions.push({ ...interaction, trigger1, trigger2 });
+            interactions.push({ 
+              ...interaction, 
+              trigger1: hasD1.name, 
+              trigger2: hasD2.name 
+            });
         }
       });
 
       return interactions;
-    }, [meds, patient.prescriptions]);
+    }, [meds]);
 
     return (
       <div className="space-y-6">

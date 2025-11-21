@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Patient, Sexo } from '../types';
@@ -129,7 +130,7 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
   const handleExport = () => {
     const dataStr = JSON.stringify(patients, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-    const exportFileDefaultName = `medflow_backup_${new Date().toISOString().slice(0,10)}.json`;
+    const exportFileDefaultName = `recmed_backup_${new Date().toISOString().slice(0,10)}.json`;
     
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
@@ -201,7 +202,7 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
          <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
            <div className="flex items-center gap-2">
              <h1 className="text-2xl font-bold text-blue-600 flex items-center gap-2">
-               <Activity /> MedFlow
+               <Activity /> RecMed
              </h1>
              <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-[10px] font-medium border border-green-200" title="Conectado à Nuvem">
                 <CloudLightning size={10} /> Nuvem

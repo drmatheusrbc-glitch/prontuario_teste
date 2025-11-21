@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Patient } from './types';
@@ -31,7 +32,7 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 text-blue-600 mb-4">
             <Activity size={32} />
           </div>
-          <h1 className="text-3xl font-bold text-slate-800">MedFlow</h1>
+          <h1 className="text-3xl font-bold text-slate-800">RecMed</h1>
           <p className="text-slate-500 mt-2">Acesso Médico Restrito</p>
         </div>
         <Card>
@@ -79,7 +80,7 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem('medflow_auth') === 'true';
+    return localStorage.getItem('recmed_auth') === 'true';
   });
 
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -88,7 +89,7 @@ const App: React.FC = () => {
 
   // Persist Auth state
   useEffect(() => {
-    localStorage.setItem('medflow_auth', String(isAuthenticated));
+    localStorage.setItem('recmed_auth', String(isAuthenticated));
   }, [isAuthenticated]);
 
   // Fetch Patients from Supabase when authenticated

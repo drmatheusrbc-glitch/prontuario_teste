@@ -1121,7 +1121,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
 
                 {/* Footer Signature Area */}
                 <div className="mt-16 pt-8 flex justify-between items-end print:flex hidden break-inside-avoid">
-                     <div className="text-xs text-slate-400">Gerado por MedFlow em {new Date().toLocaleString()}</div>
+                     <div className="text-xs text-slate-400">Gerado por RecMed em {new Date().toLocaleString()}</div>
                      <div className="text-center">
                          <div className="border-t border-slate-400 w-64 mb-1"></div>
                          <p className="text-sm text-slate-800 font-medium">Assinatura / Carimbo</p>
@@ -1169,7 +1169,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
       `}>
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
           <h2 className="text-xl font-bold text-blue-600 flex items-center gap-2">
-            <Activity className="text-blue-600" /> MedFlow
+            <Activity className="text-blue-600" /> RecMed
           </h2>
           <button onClick={() => setIsMobileMenuOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600">
             <X size={24} />

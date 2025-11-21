@@ -5,7 +5,7 @@ import {
   LayoutDashboard, FileText, Stethoscope, Activity, 
   FlaskConical, Image as ImageIcon, Pill, BarChart2, 
   AlertTriangle, Plus, Save, Trash2, Download, CheckCircle, Clock, X, Menu,
-  Printer, ClipboardList, Paperclip, CloudLightning
+  Printer, ClipboardList, Paperclip, CloudLightning, GitCompare, ExternalLink
 } from 'lucide-react';
 import { Patient, Sexo, LAB_FIELDS, VitalSign, Evolution, LabResult, Medication, ImagingExam, Diagnosis } from '../types';
 import { Card, Button, Input, TextArea } from './UiComponents';
@@ -18,6 +18,90 @@ interface DashboardProps {
   patients: Patient[];
   updatePatient: (p: Patient) => void;
 }
+
+// --- MOCK INTERACTION DATABASE ---
+// In a real app, this would come from an API like DrugBank or similar.
+// We use keyword matching to simulate the logic.
+const INTERACTION_DB = [
+  {
+    drugs: ['varfarina', 'aspirina'],
+    severity: 'Major',
+    title: 'Risco de Sangramento Aumentado',
+    description: 'O uso concomitante de anticoagulantes (Varfarina) e antiplaquetários (Aspirina/AAS) aumenta significativamente o risco de hemorragias graves. Monitorar INR e sinais de sangramento.'
+  },
+  {
+    drugs: ['varfarina', 'aas'],
+    severity: 'Major',
+    title: 'Risco de Sangramento Aumentado',
+    description: 'O uso concomitante de anticoagulantes (Varfarina) e antiplaquetários (AAS) aumenta significativamente o risco de hemorragias graves.'
+  },
+  {
+    drugs: ['sildenafil', 'nitroglicerina'],
+    severity: 'Major',
+    title: 'Hipotensão Grave',
+    description: 'A coadministração pode causar hipotensão severa e refratária, podendo levar a colapso cardiovascular. O uso é contraindicado.'
+  },
+  {
+    drugs: ['sildenafil', 'isordil'],
+    severity: 'Major',
+    title: 'Hipotensão Grave',
+    description: 'Nitratos potencializam o efeito hipotensor de inibidores da PDE5.'
+  },
+  {
+    drugs: ['simvastatina', 'amiodarona'],
+    severity: 'Moderate',
+    title: 'Risco de Miopatia/Rabdomiólise',
+    description: 'Amiodarona inibe o metabolismo da simvastatina (CYP3A4), aumentando seus níveis séricos. Dose de simvastatina não deve exceder 20mg/dia.'
+  },
+  {
+    drugs: ['digoxina', 'amiodarona'],
+    severity: 'Moderate',
+    title: 'Toxicidade Digitálica',
+    description: 'Amiodarona aumenta a concentração sérica de digoxina. Recomenda-se reduzir a dose de digoxina em 50% e monitorar níveis.'
+  },
+  {
+    drugs: ['furosemida', 'gentamicina'],
+    severity: 'Moderate',
+    title: 'Ototoxicidade',
+    description: 'O uso concomitante de diuréticos de alça e aminoglicosídeos pode aumentar o risco de ototoxicidade (perda auditiva).'
+  },
+  {
+    drugs: ['espironolactona', 'enalapril'],
+    severity: 'Moderate',
+    title: 'Hipercalemia',
+    description: 'Ambos os fármacos poupam potássio. O uso combinado aumenta risco de hipercalemia severa. Monitorar potássio sérico.'
+  },
+  {
+    drugs: ['espironolactona', 'losartana'],
+    severity: 'Moderate',
+    title: 'Hipercalemia',
+    description: 'Risco aumentado de elevação do potássio sérico. Monitorar função renal e eletrólitos.'
+  },
+  {
+    drugs: ['omeprazol', 'clopidogrel'],
+    severity: 'Moderate',
+    title: 'Redução do Efeito Antiplaquetário',
+    description: 'Omeprazol pode inibir a ativação do clopidogrel (CYP2C19), reduzindo sua eficácia na prevenção de eventos trombóticos. Considerar pantoprazol.'
+  },
+  {
+    drugs: ['tramadol', 'fluoxetina'],
+    severity: 'Major',
+    title: 'Síndrome Serotoninérgica / Risco de Convulsão',
+    description: 'Ambos afetam a serotonina e diminuem o limiar convulsivo. Risco de síndrome serotoninérgica (agitação, tremor, hipertermia).'
+  },
+  {
+    drugs: ['tramadol', 'sertralina'],
+    severity: 'Major',
+    title: 'Síndrome Serotoninérgica',
+    description: 'Risco aumentado de toxicidade serotoninérgica.'
+  },
+  {
+    drugs: ['captopril', 'potassio'],
+    severity: 'Moderate',
+    title: 'Hipercalemia',
+    description: 'IECA reduz a excreção de potássio. Suplementação deve ser feita com cautela.'
+  }
+];
 
 const SidebarItem = ({ icon: Icon, label, active, onClick }: any) => (
   <button
@@ -681,6 +765,105 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
     );
   };
 
+  const DrugInteractionsPage = () => {
+    const meds = patient.prescriptions.map(p => p.name.toLowerCase());
+    const detectedInteractions = useMemo(() => {
+      const interactions: any[] = [];
+      if (meds.length < 2) return interactions;
+
+      // Simple pairwise check against mock database
+      // In a real app, you would send 'meds' to an API
+      INTERACTION_DB.forEach(interaction => {
+        const d1 = interaction.drugs[0];
+        const d2 = interaction.drugs[1];
+
+        // Check if the patient has both drugs in the pair
+        // We use 'includes' to match partial names (e.g., "Aspirina 100mg" matches "aspirina")
+        const hasD1 = meds.some(m => m.includes(d1));
+        const hasD2 = meds.some(m => m.includes(d2));
+
+        if (hasD1 && hasD2) {
+            // Identify which specific meds triggered it
+            const trigger1 = patient.prescriptions.find(p => p.name.toLowerCase().includes(d1))?.name;
+            const trigger2 = patient.prescriptions.find(p => p.name.toLowerCase().includes(d2))?.name;
+            interactions.push({ ...interaction, trigger1, trigger2 });
+        }
+      });
+
+      return interactions;
+    }, [meds]);
+
+    return (
+      <div className="space-y-6">
+         <Card title="Verificador de Interações Medicamentosas">
+            <div className="p-4 bg-blue-50 text-blue-800 rounded-lg mb-6 text-sm flex items-start gap-3 border border-blue-100">
+               <AlertTriangle className="flex-shrink-0 mt-0.5" size={18} />
+               <div>
+                 <p className="font-bold mb-1">Aviso Importante</p>
+                 <p>Esta ferramenta utiliza um banco de dados interno simplificado para detectar interações comuns graves. Ela <strong>não substitui</strong> o julgamento clínico e não cobre todas as interações possíveis. Para uma análise completa, consulte o 
+                 <a href="https://www.drugs.com/drug_interactions.html" target="_blank" rel="noreferrer" className="underline font-bold ml-1">Drugs.com</a>.</p>
+               </div>
+            </div>
+            
+            <div className="flex flex-wrap gap-2 mb-8">
+                {patient.prescriptions.map(med => (
+                    <div key={med.id} className="px-3 py-1 bg-slate-100 rounded-full text-slate-700 text-sm font-medium border border-slate-200">
+                        {med.name}
+                    </div>
+                ))}
+                {patient.prescriptions.length === 0 && <span className="text-slate-400 italic">Nenhuma medicação para verificar.</span>}
+            </div>
+
+            {detectedInteractions.length > 0 ? (
+              <div className="space-y-4">
+                 <h3 className="font-bold text-slate-800 border-b pb-2">Interações Detectadas ({detectedInteractions.length})</h3>
+                 {detectedInteractions.map((item, idx) => (
+                    <div key={idx} className={`border-l-4 p-4 rounded-r-lg shadow-sm bg-white border ${
+                        item.severity === 'Major' ? 'border-l-red-500 border-red-100' : 
+                        item.severity === 'Moderate' ? 'border-l-amber-500 border-amber-100' : 'border-l-blue-500 border-blue-100'
+                    }`}>
+                       <div className="flex justify-between items-start mb-2">
+                          <div className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                              {item.severity === 'Major' && <AlertTriangle size={20} className="text-red-500" />}
+                              {item.title}
+                          </div>
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
+                              item.severity === 'Major' ? 'bg-red-100 text-red-700' : 
+                              item.severity === 'Moderate' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                              {item.severity === 'Major' ? 'Grave' : item.severity === 'Moderate' ? 'Moderada' : 'Leve'}
+                          </span>
+                       </div>
+                       <div className="text-sm font-mono text-slate-500 mb-2">
+                          Entre: <span className="font-bold text-slate-700">{item.trigger1}</span> + <span className="font-bold text-slate-700">{item.trigger2}</span>
+                       </div>
+                       <p className="text-slate-700 text-sm leading-relaxed">{item.description}</p>
+                    </div>
+                 ))}
+              </div>
+            ) : (
+                <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-lg">
+                    <CheckCircle size={48} className="mx-auto text-green-500 mb-3" />
+                    <h3 className="text-lg font-medium text-slate-700">Nenhuma interação crítica detectada</h3>
+                    <p className="text-slate-500 text-sm max-w-md mx-auto mt-2">Com base nas medicações cadastradas e no nosso banco de dados interno, não foram encontradas interações de alto risco.</p>
+                </div>
+            )}
+
+            <div className="mt-8 pt-4 border-t border-slate-100 flex justify-end">
+                <a 
+                  href="https://www.drugs.com/drug_interactions.html" 
+                  target="_blank" 
+                  rel="noreferrer"
+                  className="inline-flex items-center px-4 py-2 bg-slate-800 text-white rounded hover:bg-slate-700 transition-colors text-sm font-medium"
+                >
+                   <ExternalLink size={16} className="mr-2" /> Verificar no Drugs.com (Completo)
+                </a>
+            </div>
+         </Card>
+      </div>
+    );
+  };
+
   const ChartsPage = () => {
     const [selectedType, setSelectedType] = useState<'vital' | 'lab'>('vital');
     const [selectedMetric, setSelectedMetric] = useState<string>('fc');
@@ -1143,6 +1326,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
       case 'labs': return <LabResultsPage />;
       case 'imagem': return <ImagingPage />;
       case 'medicacoes': return <MedicationsPage />;
+      case 'interacoes': return <DrugInteractionsPage />;
       case 'graficos': return <ChartsPage />;
       case 'alertas': return <AlertsPage />;
       default: return <Summary />;
@@ -1190,6 +1374,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
           <SidebarItem icon={FlaskConical} label="Exames Laboratoriais" active={activeTab === 'labs'} onClick={() => setActiveTab('labs')} />
           <SidebarItem icon={ImageIcon} label="Imagem e Anexos" active={activeTab === 'imagem'} onClick={() => setActiveTab('imagem')} />
           <SidebarItem icon={Pill} label="Medicações" active={activeTab === 'medicacoes'} onClick={() => setActiveTab('medicacoes')} />
+          <SidebarItem icon={GitCompare} label="Interações Med." active={activeTab === 'interacoes'} onClick={() => setActiveTab('interacoes')} />
           <div className="my-2 border-t border-slate-100 mx-4"></div>
           <SidebarItem icon={BarChart2} label="Análise Gráfica" active={activeTab === 'graficos'} onClick={() => setActiveTab('graficos')} />
           <SidebarItem icon={AlertTriangle} label="Alertas e Pendências" active={activeTab === 'alertas'} onClick={() => setActiveTab('alertas')} />
@@ -1217,6 +1402,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                 activeTab === 'labs' ? 'Laboratório' :
                 activeTab === 'imagem' ? 'Imagens' :
                 activeTab === 'medicacoes' ? 'Medicações' :
+                activeTab === 'interacoes' ? 'Interações Medicamentosas' :
                 activeTab === 'graficos' ? 'Gráficos' : 'Alertas'}
               </div>
               <span className="md:hidden inline-flex w-fit items-center gap-1 px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 text-[9px] font-medium border border-green-200">

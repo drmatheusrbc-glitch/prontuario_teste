@@ -81,6 +81,23 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
     updatePatient({ ...patient, vitalSigns: [vs, ...patient.vitalSigns] });
   };
 
+  // Helper to get all exam fields (standard + custom)
+  const getAllExamFields = () => {
+    const customKeys = new Set<string>();
+    patient.labResults.forEach(lab => Object.keys(lab.values).forEach(k => customKeys.add(k)));
+    
+    // Start with standard fields
+    const fields = [...LAB_FIELDS];
+    
+    // Add custom fields that aren't in standard
+    customKeys.forEach(k => {
+        if(!fields.find(f => f.key === k)) {
+            fields.push({ key: k, label: k.charAt(0).toUpperCase() + k.slice(1).replace(/_/g, ' '), unit: '' });
+        }
+    });
+    return fields;
+  };
+
   // --- Sub-Components for Pages ---
 
   const Summary = () => {
@@ -529,6 +546,8 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
       alert('Exames salvos!');
     };
 
+    const displayFields = getAllExamFields();
+
     return (
       <div className="space-y-6">
         <Card title="Adicionar Exames Laboratoriais" action={<Button onClick={handleSaveLabs}><Save size={16} className="mr-2 inline"/> <span className="hidden sm:inline">Salvar Dia</span><span className="sm:hidden">Salvar</span></Button>}>
@@ -579,18 +598,18 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
             <table className="w-full text-sm text-left whitespace-nowrap">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="p-2 border-b sticky left-0 bg-slate-50">Exame</th>
-                  {patient.labResults.slice(0, 5).map((lab, i) => (
-                    <th key={i} className="p-2 border-b">{formatDate(lab.date)}</th>
+                  <th className="p-2 border-b sticky left-0 bg-slate-50 z-10">Exame</th>
+                  {patient.labResults.slice(0, 8).map((lab, i) => (
+                    <th key={i} className="p-2 border-b text-center">{formatDate(lab.date)}</th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {LAB_FIELDS.slice(0, 15).map(field => (
+                {displayFields.map(field => (
                   <tr key={field.key}>
-                    <td className="p-2 font-medium text-slate-700 sticky left-0 bg-white border-r border-slate-100 shadow-sm">{field.label}</td>
-                    {patient.labResults.slice(0, 5).map((lab, i) => (
-                      <td key={i} className="p-2">{lab.values[field.key] !== undefined ? lab.values[field.key] : '-'}</td>
+                    <td className="p-2 font-medium text-slate-700 sticky left-0 bg-white border-r border-slate-100 shadow-sm z-10">{field.label}</td>
+                    {patient.labResults.slice(0, 8).map((lab, i) => (
+                      <td key={i} className="p-2 text-center">{lab.values[field.key] !== undefined ? lab.values[field.key] : '-'}</td>
                     ))}
                   </tr>
                 ))}
@@ -666,6 +685,8 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
     const [selectedType, setSelectedType] = useState<'vital' | 'lab'>('vital');
     const [selectedMetric, setSelectedMetric] = useState<string>('fc');
 
+    const displayFields = getAllExamFields();
+
     const data = useMemo(() => {
       if (selectedType === 'vital') {
         return patient.vitalSigns.map(v => ({
@@ -713,7 +734,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                 <option value="dextro">Dextro (Glicemia)</option>
               </>
             ) : (
-              LAB_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)
+              displayFields.map(f => <option key={f.key} value={f.key}>{f.label}</option>)
             )}
           </select>
         </div>
@@ -901,6 +922,11 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
     const today = new Date().toLocaleDateString('pt-BR');
     const latestEvo = patient.evolutions[0];
     const latestVitals = patient.vitalSigns[0];
+    
+    // Get all exams fields
+    const displayFields = getAllExamFields();
+    // Get recent 5 dates for labs to display in table
+    const recentLabs = patient.labResults.slice(0, 5);
 
     return (
         <div className="space-y-6">
@@ -933,6 +959,39 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                         <div><span className="font-semibold block text-slate-500 text-xs">Leito</span> {patient.bed}</div>
                         <div><span className="font-semibold block text-slate-500 text-xs">Registro</span> {patient.id.slice(-6)}</div>
                     </div>
+                </section>
+
+                {/* Anamnesis Summary Section */}
+                <section className="mb-6">
+                   <h2 className="font-bold text-lg text-slate-800 mb-3 border-b border-slate-300 pb-1">Resumo da Anamnese</h2>
+                   <div className="grid grid-cols-1 gap-4 text-sm">
+                      {patient.hda && (
+                        <div>
+                          <span className="font-bold text-slate-700 block">HDA:</span>
+                          <p className="text-slate-800">{patient.hda}</p>
+                        </div>
+                      )}
+                      {patient.hpp && (
+                        <div>
+                          <span className="font-bold text-slate-700 block">HPP:</span>
+                          <p className="text-slate-800">{patient.hpp}</p>
+                        </div>
+                      )}
+                      <div className="grid grid-cols-2 gap-4">
+                        {patient.allergies && (
+                          <div>
+                             <span className="font-bold text-slate-700 block text-red-600">Alergias:</span>
+                             <p className="text-slate-800">{patient.allergies}</p>
+                          </div>
+                        )}
+                        {patient.continuousMeds && (
+                           <div>
+                             <span className="font-bold text-slate-700 block">Medicações Prévias:</span>
+                             <p className="text-slate-800">{patient.continuousMeds}</p>
+                          </div>
+                        )}
+                      </div>
+                   </div>
                 </section>
 
                 {/* Two Column Layout for Diagnostics & Vitals */}
@@ -977,7 +1036,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                 </div>
 
                 {/* Evolution */}
-                <section className="mb-8">
+                <section className="mb-8 break-inside-avoid">
                      <div className="flex justify-between items-baseline border-b border-slate-300 pb-1 mb-3">
                         <h2 className="font-bold text-lg text-slate-800">Evolução e Conduta</h2>
                         <span className="text-sm text-slate-500">{latestEvo ? formatDateTime(latestEvo.date) : ''}</span>
@@ -987,8 +1046,53 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                      </div>
                 </section>
 
+                {/* Lab Results Table */}
+                <section className="mb-8 break-inside-avoid">
+                   <h2 className="font-bold text-lg text-slate-800 mb-3 border-b border-slate-300 pb-1">Exames Laboratoriais Recentes</h2>
+                   {recentLabs.length > 0 ? (
+                     <div className="overflow-x-auto">
+                        <table className="w-full text-xs border-collapse border border-slate-300">
+                          <thead>
+                            <tr className="bg-slate-100">
+                              <th className="border border-slate-300 p-1 text-left w-1/3">Exame</th>
+                              {recentLabs.map((l, i) => (
+                                <th key={i} className="border border-slate-300 p-1 text-center">{formatDate(l.date)}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {displayFields.map(field => (
+                              <tr key={field.key}>
+                                <td className="border border-slate-300 p-1 font-medium">{field.label}</td>
+                                {recentLabs.map((l, i) => (
+                                  <td key={i} className="border border-slate-300 p-1 text-center">
+                                    {l.values[field.key] !== undefined ? l.values[field.key] : '-'}
+                                  </td>
+                                ))}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                     </div>
+                   ) : <p className="text-slate-500 italic text-sm">Nenhum exame registrado.</p>}
+                </section>
+
+                {/* Imaging Notes */}
+                <section className="mb-8 break-inside-avoid">
+                   <h2 className="font-bold text-lg text-slate-800 mb-3 border-b border-slate-300 pb-1">Imagens e Anexos (Notas)</h2>
+                   <div className="space-y-3">
+                      {patient.imaging.map(img => (
+                         <div key={img.id} className="text-sm border-l-2 border-slate-300 pl-3">
+                            <p className="font-bold text-slate-700 text-xs mb-1">{formatDate(img.date)} {img.attachmentName ? ` - Anexo: ${img.attachmentName}` : ''}</p>
+                            <p className="text-slate-800 whitespace-pre-wrap">{img.description || <span className="italic text-slate-400">Sem descrição</span>}</p>
+                         </div>
+                      ))}
+                      {patient.imaging.length === 0 && <p className="text-slate-500 italic text-sm">Nenhum registro de imagem.</p>}
+                   </div>
+                </section>
+
                 {/* Meds & Pendencies */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 break-inside-avoid">
                     <section>
                         <h2 className="font-bold text-lg text-slate-800 mb-3 border-b border-slate-300 pb-1">Prescrição Atual</h2>
                         <div className="space-y-2">
@@ -1016,7 +1120,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                 </div>
 
                 {/* Footer Signature Area */}
-                <div className="mt-16 pt-8 flex justify-between items-end print:flex hidden">
+                <div className="mt-16 pt-8 flex justify-between items-end print:flex hidden break-inside-avoid">
                      <div className="text-xs text-slate-400">Gerado por MedFlow em {new Date().toLocaleString()}</div>
                      <div className="text-center">
                          <div className="border-t border-slate-400 w-64 mb-1"></div>

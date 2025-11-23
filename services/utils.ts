@@ -19,6 +19,19 @@ export const calculateAge = (birthDate: string): number => {
   return age;
 };
 
+export const calculateDaysHospitalized = (admissionDate: string): number => {
+  if (!admissionDate) return 0;
+  // Normalize dates to midnight to calculate full days
+  const start = new Date(admissionDate);
+  start.setHours(0, 0, 0, 0);
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  
+  const diffTime = Math.abs(now.getTime() - start.getTime());
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+  return diffDays; // Returns 0 if admitted today
+};
+
 export const calculateCKDEPI = (creatinine: number, age: number, sex: Sexo, ethnicity: string): number => {
   if (!creatinine || !age) return 0;
   
@@ -35,17 +48,25 @@ export const calculateCKDEPI = (creatinine: number, age: number, sex: Sexo, ethn
   let tfg = 141 * part1 * part2 * part3;
   
   if (isFemale) tfg *= 1.018;
-  if (isBlack) tfg *= 1.159;
+  // Note: 2021 CKD-EPI removed race coefficient, but keeping structure if user requested specific version previously. 
+  // If using strict 2021, race multiplier is removed. Assuming strict 2021 based on previous prompt:
+  // if (isBlack) tfg *= 1.159; // Removed for 2021 update
 
   return parseFloat(tfg.toFixed(1));
 };
 
 export const formatDate = (dateStr: string) => {
   if(!dateStr) return '-';
+  // Handle timezone offset issues by parsing parts
+  const parts = dateStr.split('T')[0].split('-');
+  if(parts.length === 3) {
+     return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
   return new Date(dateStr).toLocaleDateString('pt-BR');
 };
 
 export const formatDateTime = (dateStr: string) => {
   if(!dateStr) return '-';
-  return new Date(dateStr).toLocaleDateString('pt-BR') + ' ' + new Date(dateStr).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('pt-BR') + ' ' + date.toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'});
 };

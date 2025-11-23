@@ -11,7 +11,8 @@ export interface VitalSign {
   pas: number;
   pad: number;
   sato2: number;
-  dextro: number; // Added Dextro
+  dextro: number;
+  tax: number; // Temperatura Axilar
 }
 
 export interface LabResult {

@@ -6,11 +6,11 @@ import {
   FlaskConical, Image as ImageIcon, Pill, BarChart2, 
   AlertTriangle, Plus, Save, Trash2, Download, CheckCircle, Clock, X, Menu,
   Printer, ClipboardList, Paperclip, CloudLightning, GitCompare, ExternalLink, Search,
-  Pencil, Calendar
+  Pencil, Calendar, UserCog
 } from 'lucide-react';
 import { Patient, Sexo, LAB_FIELDS, VitalSign, Evolution, LabResult, Medication, ImagingExam, Diagnosis } from '../types';
 import { Card, Button, Input, TextArea, Select } from './UiComponents';
-import { formatDate, formatDateTime, calculateCKDEPI } from '../services/utils';
+import { formatDate, formatDateTime, calculateCKDEPI, calculateDaysHospitalized, calculateBMI } from '../services/utils';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
@@ -67,16 +67,18 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
 
   // --- Local States for Forms ---
   
-  // Evolution (Split fields)
+  // Evolution (Split fields & Date)
   const [evoSubj, setEvoSubj] = useState('');
   const [evoExam, setEvoExam] = useState('');
   const [evoConduct, setEvoConduct] = useState('');
+  const [evoDate, setEvoDate] = useState(new Date().toISOString().slice(0, 10));
+  const [evoTime, setEvoTime] = useState(new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}));
   
   const [selectedEvolution, setSelectedEvolution] = useState<Evolution | null>(null); // For viewing full modal
   
   // Vital Signs
   const [vitalForm, setVitalForm] = useState({
-    fc: '', fr: '', pas: '', pad: '', sato2: '', dextro: '',
+    fc: '', fr: '', pas: '', pad: '', sato2: '', dextro: '', tax: '',
     date: new Date().toISOString().slice(0, 10),
     time: new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'})
   });
@@ -177,18 +179,26 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
     if (evoExam) combinedContent += `**Exame Físico:**\n${evoExam}\n\n`;
     if (evoConduct) combinedContent += `**Conduta:**\n${evoConduct}`;
 
+    // Construct Date object from form inputs
+    const dateTimeStr = `${evoDate}T${evoTime}:00`;
+    const dateObj = new Date(dateTimeStr);
+    const finalDate = !isNaN(dateObj.getTime()) ? dateObj.toISOString() : new Date().toISOString();
+
     const newEv: Evolution = {
       id: Date.now().toString(),
-      date: new Date().toISOString(),
+      date: finalDate,
       content: combinedContent.trim()
     };
     updatePatient({
       ...patient,
-      evolutions: [newEv, ...patient.evolutions]
+      evolutions: [newEv, ...patient.evolutions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     });
     setEvoSubj('');
     setEvoExam('');
     setEvoConduct('');
+    // Reset to current time
+    setEvoDate(new Date().toISOString().slice(0, 10));
+    setEvoTime(new Date().toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}));
     alert('Evolução salva!');
   };
 
@@ -214,7 +224,8 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
       pas: Number(vitalForm.pas) || 0,
       pad: Number(vitalForm.pad) || 0,
       sato2: Number(vitalForm.sato2) || 0,
-      dextro: Number(vitalForm.dextro) || 0
+      dextro: Number(vitalForm.dextro) || 0,
+      tax: Number(vitalForm.tax) || 0,
     };
     
     // Sort chronologically descending
@@ -226,7 +237,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
     });
     
     // Reset values but keep current date/time
-    setVitalForm({ ...vitalForm, fc: '', fr: '', pas: '', pad: '', sato2: '', dextro: '' });
+    setVitalForm({ ...vitalForm, fc: '', fr: '', pas: '', pad: '', sato2: '', dextro: '', tax: '' });
     alert('Sinais Vitais salvos!');
   };
 
@@ -446,7 +457,8 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
           <div className="text-right md:text-right">
             <p className="text-xs opacity-75 uppercase tracking-wider">Admissão</p>
             <p className="font-semibold">{formatDate(patient.admissionDate)}</p>
-            <p className="text-sm mt-1">{patient.hospital}</p>
+            <p className="text-xs opacity-75 uppercase tracking-wider mt-2">Tempo Internação</p>
+            <p className="font-semibold">{calculateDaysHospitalized(patient.admissionDate)} dias</p>
           </div>
         </div>
       </div>
@@ -498,18 +510,22 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
         {/* Last Vitals */}
         <Card title="Últimos Sinais Vitais">
            {patient.vitalSigns.length > 0 ? (
-             <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-3 bg-slate-50 rounded-lg">
+             <div className="grid grid-cols-4 gap-2 text-center">
+                <div className="p-2 bg-slate-50 rounded-lg">
                   <p className="text-xs text-slate-500">PA</p>
-                  <p className="text-lg font-bold text-slate-800">{patient.vitalSigns[0].pas}/{patient.vitalSigns[0].pad}</p>
+                  <p className="text-base font-bold text-slate-800">{patient.vitalSigns[0].pas}/{patient.vitalSigns[0].pad}</p>
                 </div>
-                <div className="p-3 bg-slate-50 rounded-lg">
+                <div className="p-2 bg-slate-50 rounded-lg">
                   <p className="text-xs text-slate-500">FC</p>
-                  <p className="text-lg font-bold text-slate-800">{patient.vitalSigns[0].fc}</p>
+                  <p className="text-base font-bold text-slate-800">{patient.vitalSigns[0].fc}</p>
                 </div>
-                <div className="p-3 bg-slate-50 rounded-lg">
+                <div className="p-2 bg-slate-50 rounded-lg">
                   <p className="text-xs text-slate-500">SatO2</p>
-                  <p className="text-lg font-bold text-slate-800">{patient.vitalSigns[0].sato2}%</p>
+                  <p className="text-base font-bold text-slate-800">{patient.vitalSigns[0].sato2}%</p>
+                </div>
+                <div className="p-2 bg-slate-50 rounded-lg">
+                  <p className="text-xs text-slate-500">Temp</p>
+                  <p className="text-base font-bold text-slate-800">{patient.vitalSigns[0].tax || '-'}ºC</p>
                 </div>
              </div>
            ) : <p className="text-slate-400 italic">Sem registros.</p>}
@@ -562,6 +578,68 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
      );
   };
 
+  const RegistrationTab = () => {
+    const [formData, setFormData] = useState(patient);
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+      const { name, value } = e.target;
+      setFormData(prev => {
+        const updated = { ...prev, [name]: value };
+        if (name === 'weight' || name === 'height') {
+          updated.bmi = calculateBMI(Number(updated.weight || 0), Number(updated.height || 0));
+        }
+        return updated;
+      });
+    };
+
+    const handleSave = () => {
+      updatePatient(formData);
+      alert('Cadastro atualizado!');
+    };
+
+    return (
+      <div className="space-y-6">
+        <Card title="Editar Cadastro" action={<Button onClick={handleSave} size="sm"><Save size={16} className="mr-2"/> Salvar Alterações</Button>}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2 font-semibold text-blue-600 border-b pb-2 mb-2">Identificação</div>
+            
+            <Input label="Nome" name="firstName" value={formData.firstName || ''} onChange={handleChange} />
+            <Input label="Sobrenome" name="lastName" value={formData.lastName || ''} onChange={handleChange} />
+            
+            <Input label="Data de Nascimento" name="birthDate" type="date" value={formData.birthDate || ''} onChange={handleChange} />
+            <Input label="Idade" name="age" value={formData.age || ''} readOnly className="bg-slate-100" />
+            
+            <Select label="Sexo" name="sex" value={formData.sex} onChange={handleChange}>
+              <option value={Sexo.MASCULINO}>Masculino</option>
+              <option value={Sexo.FEMININO}>Feminino</option>
+            </Select>
+            <Input label="Etnia" name="ethnicity" value={formData.ethnicity || ''} onChange={handleChange} />
+
+            <div className="md:col-span-2 font-semibold text-blue-600 border-b pb-2 mb-2 mt-4">Internação</div>
+            
+            <Input label="Hospital" name="hospital" value={formData.hospital || ''} onChange={handleChange} />
+            <Input label="Leito" name="bed" value={formData.bed || ''} onChange={handleChange} />
+            <Input label="Data Internação" name="admissionDate" type="date" value={formData.admissionDate || ''} onChange={handleChange} />
+
+            <div className="md:col-span-2 font-semibold text-blue-600 border-b pb-2 mb-2 mt-4">Dados Antropométricos</div>
+            
+            <Input label="Peso (kg)" name="weight" type="number" step="0.1" value={formData.weight || ''} onChange={handleChange} />
+            <Input label="Altura (cm ou m)" name="height" type="number" step="0.01" value={formData.height || ''} onChange={handleChange} />
+            <Input label="IMC (Auto)" name="bmi" value={formData.bmi || ''} readOnly className="bg-slate-100" />
+
+            <div className="md:col-span-2 font-semibold text-blue-600 border-b pb-2 mb-2 mt-4">Contato e Social</div>
+
+            <Input label="Cidade" name="city" value={formData.city || ''} onChange={handleChange} />
+            <Input label="Estado" name="state" value={formData.state || ''} onChange={handleChange} />
+            <Input label="Endereço" name="address" value={formData.address || ''} onChange={handleChange} className="md:col-span-2" />
+            <Input label="Telefone" name="phone" value={formData.phone || ''} onChange={handleChange} />
+            <Input label="Emprego/Profissão" name="occupation" value={formData.occupation || ''} onChange={handleChange} />
+          </div>
+        </Card>
+      </div>
+    );
+  };
+
   const ProntuarioDia = () => {
     const activeDiags = patient.diagnostics.filter(d => d.status === 'Ativo');
     const activeMeds = patient.prescriptions.filter(m => !m.endDate);
@@ -595,7 +673,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
             <p><span className="font-bold">Idade/Sexo:</span> {patient.age} anos / {patient.sex}</p>
             <p><span className="font-bold">Registro/ID:</span> {patient.id}</p>
             <p><span className="font-bold">Leito:</span> {patient.bed}</p>
-            <p><span className="font-bold">Admissão:</span> {formatDate(patient.admissionDate)}</p>
+            <p><span className="font-bold">Admissão:</span> {formatDate(patient.admissionDate)} ({calculateDaysHospitalized(patient.admissionDate)} dias)</p>
          </div>
 
          <div className="space-y-6">
@@ -632,11 +710,12 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
             <section>
                <h3 className="text-sm font-bold text-slate-900 uppercase bg-slate-100 p-1 mb-2 border-l-4 border-slate-800">Sinais Vitais (Último registro)</h3>
                {lastVital ? (
-                 <div className="grid grid-cols-6 gap-2 text-center text-sm border p-2 rounded">
+                 <div className="grid grid-cols-7 gap-2 text-center text-sm border p-2 rounded">
                     <div><span className="block text-xs font-bold text-slate-500">PA</span>{lastVital.pas}/{lastVital.pad}</div>
                     <div><span className="block text-xs font-bold text-slate-500">FC</span>{lastVital.fc}</div>
                     <div><span className="block text-xs font-bold text-slate-500">FR</span>{lastVital.fr}</div>
                     <div><span className="block text-xs font-bold text-slate-500">SatO2</span>{lastVital.sato2}%</div>
+                    <div><span className="block text-xs font-bold text-slate-500">Temp</span>{lastVital.tax || '-'}</div>
                     <div><span className="block text-xs font-bold text-slate-500">Dextro</span>{lastVital.dextro || '-'}</div>
                     <div><span className="block text-xs font-bold text-slate-500">Data</span>{formatDateTime(lastVital.date).split(' ')[1]}</div>
                  </div>
@@ -700,7 +779,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                            )
                         ))}
                         {/* Custom Exams */}
-                         {allExamKeys.filter(k => !LAB_FIELDS.some(f => f.key === k)).map(key => (
+                         {allExamKeys.filter(k => !LAB_FIELDS.some(f => f.key === k)).map((key: string) => (
                             <tr key={key}>
                               <td className="border border-slate-300 p-1 font-medium capitalize">{key}</td>
                               {sortedLabDates.slice(-5).map(lr => (
@@ -773,6 +852,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
            {[
              { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
              { id: 'prontuario', label: 'Prontuário do Dia', icon: Printer },
+             { id: 'cadastro', label: 'Cadastro', icon: UserCog },
              { id: 'anamnese', label: 'Anamnese', icon: FileText },
              { id: 'diagnosticos', label: 'Diagnósticos', icon: Stethoscope },
              { id: 'evolucao', label: 'Evolução e Conduta', icon: ClipboardList },
@@ -804,6 +884,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
       <main className="flex-1 p-4 md:p-8 overflow-y-auto h-screen">
          {activeTab === 'dashboard' && <Summary />}
          {activeTab === 'prontuario' && <ProntuarioDia />}
+         {activeTab === 'cadastro' && <RegistrationTab />}
          {activeTab === 'anamnese' && <AnamnesisTab />}
          
          {activeTab === 'diagnosticos' && (
@@ -866,6 +947,10 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
 
              <Card title="Nova Evolução e Conduta" action={<Button onClick={saveEvolution}><Save size={16} className="mr-2"/> Salvar</Button>}>
                <div className="space-y-4">
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4 p-4 bg-slate-50 rounded-lg border border-slate-100">
+                    <Input label="Data" type="date" value={evoDate} onChange={e => setEvoDate(e.target.value)} className="bg-white text-slate-900" />
+                    <Input label="Hora" type="time" value={evoTime} onChange={e => setEvoTime(e.target.value)} className="bg-white text-slate-900" />
+                 </div>
                  <TextArea 
                    label="Evolução Diária" 
                    rows={5} 
@@ -925,12 +1010,13 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                   <Input label="Data" type="date" value={vitalForm.date} onChange={e => setVitalForm({...vitalForm, date: e.target.value})} className="bg-white text-slate-900" />
                   <Input label="Hora" type="time" value={vitalForm.time} onChange={e => setVitalForm({...vitalForm, time: e.target.value})} className="bg-white text-slate-900" />
                </div>
-               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
                  <Input label="PAS (mmHg)" type="number" value={vitalForm.pas} onChange={e => setVitalForm({...vitalForm, pas: e.target.value})} className="bg-white text-slate-900" />
                  <Input label="PAD (mmHg)" type="number" value={vitalForm.pad} onChange={e => setVitalForm({...vitalForm, pad: e.target.value})} className="bg-white text-slate-900" />
                  <Input label="FC (bpm)" type="number" value={vitalForm.fc} onChange={e => setVitalForm({...vitalForm, fc: e.target.value})} className="bg-white text-slate-900" />
                  <Input label="FR (irpm)" type="number" value={vitalForm.fr} onChange={e => setVitalForm({...vitalForm, fr: e.target.value})} className="bg-white text-slate-900" />
                  <Input label="SatO2 (%)" type="number" value={vitalForm.sato2} onChange={e => setVitalForm({...vitalForm, sato2: e.target.value})} className="bg-white text-slate-900" />
+                 <Input label="Temp (ºC)" type="number" step="0.1" value={vitalForm.tax} onChange={e => setVitalForm({...vitalForm, tax: e.target.value})} className="bg-white text-slate-900" />
                  <Input label="Dextro (mg/dL)" type="number" value={vitalForm.dextro} onChange={e => setVitalForm({...vitalForm, dextro: e.target.value})} className="bg-white text-slate-900" />
                </div>
              </Card>
@@ -945,6 +1031,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                         <th className="p-3">FC</th>
                         <th className="p-3">FR</th>
                         <th className="p-3">SatO2</th>
+                        <th className="p-3">Temp</th>
                         <th className="p-3">Dextro</th>
                         <th className="p-3 rounded-tr-lg text-right">Ações</th>
                       </tr>
@@ -957,6 +1044,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                           <td className="p-3">{vs.fc}</td>
                           <td className="p-3">{vs.fr}</td>
                           <td className="p-3">{vs.sato2}%</td>
+                          <td className="p-3">{vs.tax || '-'}ºC</td>
                           <td className="p-3">{vs.dextro || '-'}</td>
                           <td className="p-3 text-right">
                              <button onClick={() => deleteVitalSign(i)} className="text-slate-300 hover:text-red-600 transition-colors opacity-0 group-hover:opacity-100">
@@ -1061,7 +1149,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                       {/* Dynamically find other keys present in history */}
                       {Array.from(new Set(patient.labResults.flatMap(r => Object.keys(r.values))))
                         .filter(k => !LAB_FIELDS.some(f => f.key === k))
-                        .map(key => (
+                        .map((key: string) => (
                           <tr key={key} className="hover:bg-slate-50">
                             <td className="p-2 border border-slate-200 font-medium text-slate-700 capitalize">{key}</td>
                             {patient.labResults.map((res, i) => (
@@ -1297,6 +1385,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                            <option value="fr">Frequência Respiratória</option>
                            <option value="sato2">Saturação O2</option>
                            <option value="dextro">Dextro</option>
+                           <option value="tax">Temperatura</option>
                         </Select>
                      )}
                    </div>

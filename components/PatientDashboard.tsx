@@ -20,42 +20,6 @@ interface DashboardProps {
   updatePatient: (p: Patient) => void;
 }
 
-// --- DRUG CLASSES DEFINITIONS ---
-// Maps specific drugs to their classes for broad interaction matching
-const DRUG_CLASSES: Record<string, string[]> = {
-  'aines': ['diclofenaco', 'ibuprofeno', 'naproxeno', 'cetoprofeno', 'acido acetilsalicilico', 'aas', 'indometacina', 'piroxicam', 'celecoxibe', 'meloxicam', 'cetorolaco', 'nimesulida', 'aspirina', 'dipirona'],
-  'ieca': ['captopril', 'enalapril', 'lisinopril', 'ramipril', 'benazepril', 'perindopril', 'fosinopril'],
-  'beta_bloqueadores': ['atenolol', 'propranolol', 'metoprolol', 'carvedilol', 'bisoprolol', 'nebivolol', 'sotalol', 'timolol', 'labetalol'],
-  'estatinas': ['sinvastatina', 'atorvastatina', 'rosuvastatina', 'pravastatina', 'fluvastatina', 'lovastatina', 'pitavastatina'],
-  'macrolideos': ['azitromicina', 'claritromicina', 'eritromicina'],
-  'quinolonas': ['ciprofloxacino', 'levofloxacino', 'moxifloxacino', 'norfloxacino', 'ofloxacino', 'gatifloxacino'],
-  'azoles': ['fluconazol', 'cetoconazol', 'itraconazol', 'voriconazol', 'miconazol', 'posaconazol'],
-  'corticoides': ['hidrocortisona', 'dexametasona', 'prednisona', 'prednisolona', 'metilprednisolona', 'betametasona', 'fludicortisona', 'triancinolona'],
-  'aminoglicosideos': ['gentamicina', 'amicacina', 'neomicina', 'tobramicina', 'estreptomicina'],
-  'bcc': ['anlodipino', 'nifedipino', 'diltiazem', 'verapamil', 'nimodipino', 'felodipino', 'anlodipina'], // Bloqueadores de Canal de Cálcio
-  'isrs': ['fluoxetina', 'sertralina', 'paroxetina', 'citalopram', 'escitalopram', 'fluvoxamina'], // Inibidores Seletivos de Recaptação de Serotonina
-  'benzodiazepinicos': ['diazepam', 'midazolam', 'clonazepam', 'alprazolam', 'lorazepam', 'bromazepam'],
-  'bloq_neuromusculares': ['atracurio', 'pancuronio', 'suxametonio', 'rocuronio', 'cisatracurio'],
-  'diureticos_alca': ['furosemida', 'bumetanida'],
-  'anticonvulsivantes': ['fenitoina', 'carbamazepina', 'fenobarbital', 'acido valproico', 'topiramato', 'lamotrigina'],
-  'antifungicos': ['anfotericina b', 'fluconazol', 'cetoconazol', 'itraconazol', 'voriconazol', 'miconazol'],
-  'tiazidicos': ['hidroclorotiazida', 'clortalidona', 'indapamida']
-};
-
-// --- INTERACTION DATABASE (Based on RioSaúde/UFG PDF) ---
-const INTERACTION_DB = [
-  // ANFOTERICINA B
-  { drugs: ['anfotericina b', 'digoxina'], severity: 'Moderate', title: 'Hipocalemia e Toxicidade Digitálica', effect: 'Hipocalemia e toxicidade digitálica.', recommendation: 'Monitorar K+ e função cardíaca. Repor K+ se necessário.' },
-  // ... (DB truncated for brevity, assumes full DB from previous context exists) ...
-  { drugs: ['aminoglicosideos', 'diureticos_alca'], severity: 'Moderate', title: 'Nefrotoxicidade', effect: 'Aumento do risco de nefrotoxicidade.', recommendation: 'Monitorar função renal.' },
-  { drugs: ['amiodarona', 'amitriptilina'], severity: 'Major', title: 'Arritmias Ventriculares', effect: 'Risco de arritmias ventriculares.', recommendation: 'Uso com cautela. Monitorar ECG.' },
-  { drugs: ['amiodarona', 'macrolideos'], severity: 'Major', title: 'Prolongamento QT', effect: 'Aumento do intervalo QT (arritmias graves).', recommendation: 'Uso com bastante cautela ou evitar.' },
-  { drugs: ['amiodarona', 'digoxina'], severity: 'Major', title: 'Toxicidade Digitálica', effect: 'Aumento da concentração plasmática da digoxina.', recommendation: 'Reduzir dose de digoxina em 1/3 ou metade.' },
-  { drugs: ['ieca', 'aines'], severity: 'Moderate', title: 'Falha Renal/Hipertensão', effect: 'Piora da função renal e redução do efeito anti-hipertensivo.', recommendation: 'Monitorar creatinina e PA.' },
-  { drugs: ['varfarina', 'aines'], severity: 'Moderate', title: 'Hemorragia', effect: 'Risco alto.', recommendation: 'Monitorar.' },
-  { drugs: ['clopidogrel', 'omeprazol'], severity: 'Major', title: 'Falha Terapêutica', effect: 'Redução da eficácia do clopidogrel (risco trombótico).', recommendation: 'Evitar (usar pantoprazol).' }
-];
-
 export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePatient }) => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -114,57 +78,6 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
   useEffect(() => {
     if (!patient) navigate('/');
   }, [patient, navigate]);
-
-  // --- Helpers ---
-  const normalizeText = (text: string) => {
-    return text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-  };
-
-  const getDrugKeys = (drugName: string): string[] => {
-    const normalizedName = normalizeText(drugName);
-    const keys = [normalizedName];
-    
-    // Add classes based on inclusion
-    Object.entries(DRUG_CLASSES).forEach(([className, drugList]) => {
-      if (drugList.some(d => normalizedName === normalizeText(d) || normalizedName.includes(normalizeText(d))) || normalizedName === className) {
-        keys.push(className);
-      }
-    });
-    return keys;
-  };
-
-  // --- Computed ---
-  const detectedInteractions = useMemo(() => {
-    if (!patient) return [];
-    const activeMeds = patient.prescriptions.filter(m => m.status !== 'ended'); 
-    const interactions: any[] = [];
-
-    for (let i = 0; i < activeMeds.length; i++) {
-      for (let j = i + 1; j < activeMeds.length; j++) {
-        const medA = activeMeds[i];
-        const medB = activeMeds[j];
-
-        const keysA = getDrugKeys(medA.name);
-        const keysB = getDrugKeys(medB.name);
-
-        INTERACTION_DB.forEach(rule => {
-          const [ruleDrug1, ruleDrug2] = rule.drugs; 
-          
-          const match1 = keysA.includes(ruleDrug1) && keysB.includes(ruleDrug2);
-          const match2 = keysA.includes(ruleDrug2) && keysB.includes(ruleDrug1);
-
-          if (match1 || match2) {
-            interactions.push({
-              ...rule,
-              med1: medA.name,
-              med2: medB.name
-            });
-          }
-        });
-      }
-    }
-    return interactions;
-  }, [patient?.prescriptions]);
 
   if (!patient) return null;
 
@@ -893,7 +806,6 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
              { id: 'exames', label: 'Exames Laboratoriais', icon: FlaskConical },
              { id: 'imagem', label: 'Exames de Imagem', icon: ImageIcon },
              { id: 'medicacoes', label: 'Medicações', icon: Pill },
-             { id: 'interacoes', label: 'Interações Med.', icon: GitCompare },
              { id: 'graficos', label: 'Análise Gráfica', icon: BarChart2 },
              { id: 'alertas', label: 'Alertas e Pendências', icon: AlertTriangle },
            ].map(item => (
@@ -1282,68 +1194,6 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
            </div>
          )}
 
-         {activeTab === 'interacoes' && (
-            <div className="space-y-6">
-               <Card title="Análise de Interações Medicamentosas">
-                  <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
-                     <div className="flex items-start">
-                        <AlertTriangle className="text-yellow-600 mr-3 mt-0.5" size={20} />
-                        <div>
-                           <p className="text-sm text-yellow-800 font-semibold">Aviso Importante</p>
-                           <p className="text-sm text-yellow-700 mt-1">
-                              Esta ferramenta utiliza um banco de dados baseado no Guia de Interações Medicamentosas da RioSaúde/UFG, mas pode não cobrir 100% das interações possíveis. 
-                              Sempre avalie o quadro clínico do paciente.
-                           </p>
-                           <a href="https://www.drugs.com/drug_interactions.html" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline mt-2 inline-flex items-center gap-1">
-                              Consultar base completa (Drugs.com) <ExternalLink size={10}/>
-                           </a>
-                        </div>
-                     </div>
-                  </div>
-
-                  {detectedInteractions.length > 0 ? (
-                     <div className="grid gap-4">
-                        {detectedInteractions.map((interaction, idx) => (
-                           <div key={idx} className={`border rounded-lg p-4 shadow-sm ${
-                              interaction.severity === 'Contraindicated' ? 'bg-red-50 border-red-200' :
-                              interaction.severity === 'Major' ? 'bg-orange-50 border-orange-200' :
-                              'bg-slate-50 border-slate-200'
-                           }`}>
-                              <div className="flex justify-between items-start mb-2">
-                                 <h4 className={`font-bold ${
-                                    interaction.severity === 'Contraindicated' ? 'text-red-700' :
-                                    interaction.severity === 'Major' ? 'text-orange-700' :
-                                    'text-slate-700'
-                                 }`}>
-                                    {interaction.med1} + {interaction.med2}
-                                 </h4>
-                                 <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${
-                                    interaction.severity === 'Contraindicated' ? 'bg-red-200 text-red-800' :
-                                    interaction.severity === 'Major' ? 'bg-orange-200 text-orange-800' :
-                                    'bg-slate-200 text-slate-700'
-                                 }`}>
-                                    {interaction.severity === 'Contraindicated' ? 'Contraindicado' : 
-                                     interaction.severity === 'Major' ? 'Grave' : 'Moderado'}
-                                 </span>
-                              </div>
-                              <p className="text-sm font-semibold text-slate-800 mb-1">{interaction.title}</p>
-                              <p className="text-sm text-slate-600 mb-2"><span className="font-medium">Efeito:</span> {interaction.effect}</p>
-                              <div className="text-sm bg-white/50 p-2 rounded border border-black/5 text-slate-700">
-                                 <span className="font-bold mr-1">Recomendação:</span> {interaction.recommendation}
-                              </div>
-                           </div>
-                        ))}
-                     </div>
-                  ) : (
-                     <div className="text-center py-12 text-slate-400">
-                        <CheckCircle size={48} className="mx-auto mb-2 text-green-500 opacity-50" />
-                        <p>Nenhuma interação medicamentosa detectada entre os medicamentos ativos.</p>
-                     </div>
-                  )}
-               </Card>
-            </div>
-         )}
-
          {activeTab === 'imagem' && (
            <div className="space-y-6">
              <Card title="Adicionar Exame de Imagem/Anexo">
@@ -1420,7 +1270,17 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
              <Card className="flex-1 flex flex-col min-h-[600px]" title="Análise Gráfica">
                 <div className="flex flex-wrap gap-4 mb-6">
                    <div className="w-full md:w-48">
-                     <Select label="Tipo de Dado" value={chartType} onChange={e => setChartType(e.target.value as any)} className="bg-white text-slate-900">
+                     <Select 
+                        label="Tipo de Dado" 
+                        value={chartType} 
+                        onChange={e => {
+                           const newType = e.target.value as 'lab' | 'vital';
+                           setChartType(newType);
+                           // Reset metric to a default valid value for the new type to prevent empty charts
+                           setChartMetric(newType === 'lab' ? 'leucocitos' : 'pas');
+                        }} 
+                        className="bg-white text-slate-900"
+                     >
                         <option value="lab">Laboratorial</option>
                         <option value="vital">Sinais Vitais</option>
                      </Select>
@@ -1459,19 +1319,19 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                             .map(r => ({
                                date: formatDate(r.date),
                                value: r.values[chartMetric]
-                            })).filter(d => d.value !== undefined);
+                            })).filter(d => d.value !== undefined && d.value !== null);
                       } else {
                          data = [...patient.vitalSigns]
                             .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                             .map(r => ({
                                date: formatDateTime(r.date),
                                value: (r as any)[chartMetric]
-                            }));
+                            })).filter(d => d.value !== undefined && d.value !== null && d.value !== '');
                       }
 
                       if (data.length === 0) {
                         return (
-                          <div className="h-full flex items-center justify-center text-slate-400">
+                          <div className="h-full flex items-center justify-center text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
                             <p>Sem dados suficientes para gerar gráfico deste item.</p>
                           </div>
                         )
@@ -1479,15 +1339,36 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
 
                       return (
                         <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={data} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="date" stroke="#64748b" style={{fontSize: '12px'}} />
-                            <YAxis stroke="#64748b" style={{fontSize: '12px'}} />
+                          <LineChart data={data} margin={{ top: 20, right: 30, bottom: 20, left: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                            <XAxis 
+                              dataKey="date" 
+                              stroke="#64748b" 
+                              style={{fontSize: '11px'}} 
+                              tick={{fill: '#64748b'}}
+                              tickMargin={10}
+                            />
+                            <YAxis 
+                              stroke="#64748b" 
+                              style={{fontSize: '11px'}} 
+                              tick={{fill: '#64748b'}} 
+                            />
                             <Tooltip 
                                contentStyle={{backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}}
+                               itemStyle={{color: '#1e293b', fontWeight: 600}}
+                               labelStyle={{color: '#64748b', marginBottom: '0.25rem'}}
                             />
-                            <Legend />
-                            <Line type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={2} activeDot={{ r: 8 }} name={chartType === 'lab' ? 'Resultado' : 'Valor'} />
+                            <Legend verticalAlign="top" height={36}/>
+                            <Line 
+                              type="monotone" 
+                              dataKey="value" 
+                              stroke="#2563eb" 
+                              strokeWidth={3} 
+                              activeDot={{ r: 6, strokeWidth: 0 }} 
+                              dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
+                              name={chartType === 'lab' ? 'Resultado' : 'Valor'} 
+                              animationDuration={500}
+                            />
                           </LineChart>
                         </ResponsiveContainer>
                       );

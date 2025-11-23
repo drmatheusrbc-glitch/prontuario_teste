@@ -6,7 +6,7 @@ import {
   FlaskConical, Image as ImageIcon, Pill, BarChart2, 
   AlertTriangle, Plus, Save, Trash2, Download, CheckCircle, Clock, X, Menu,
   Printer, ClipboardList, Paperclip, CloudLightning, GitCompare, ExternalLink, Search,
-  Pencil, Calendar, UserCog
+  Pencil, Calendar, UserCog, CheckSquare, StopCircle
 } from 'lucide-react';
 import { Patient, Sexo, LAB_FIELDS, VitalSign, Evolution, LabResult, Medication, ImagingExam, Diagnosis } from '../types';
 import { Card, Button, Input, TextArea, Select } from './UiComponents';
@@ -47,7 +47,6 @@ const INTERACTION_DB = [
   // ANFOTERICINA B
   { drugs: ['anfotericina b', 'digoxina'], severity: 'Moderate', title: 'Hipocalemia e Toxicidade Digitálica', effect: 'Hipocalemia e toxicidade digitálica.', recommendation: 'Monitorar K+ e função cardíaca. Repor K+ se necessário.' },
   // ... (DB truncated for brevity, assumes full DB from previous context exists) ...
-  // Including a few samples to ensure it works, full DB logic is preserved from context
   { drugs: ['aminoglicosideos', 'diureticos_alca'], severity: 'Moderate', title: 'Nefrotoxicidade', effect: 'Aumento do risco de nefrotoxicidade.', recommendation: 'Monitorar função renal.' },
   { drugs: ['amiodarona', 'amitriptilina'], severity: 'Major', title: 'Arritmias Ventriculares', effect: 'Risco de arritmias ventriculares.', recommendation: 'Uso com cautela. Monitorar ECG.' },
   { drugs: ['amiodarona', 'macrolideos'], severity: 'Major', title: 'Prolongamento QT', effect: 'Aumento do intervalo QT (arritmias graves).', recommendation: 'Uso com bastante cautela ou evitar.' },
@@ -97,6 +96,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
   const [medForm, setMedForm] = useState({
     name: '', route: '', dose: '', frequency: '', startDate: new Date().toISOString().slice(0, 10), endDate: '', isContinuous: false
   });
+  const [editingMedId, setEditingMedId] = useState<string | null>(null);
 
   // Diagnosis
   const [diagForm, setDiagForm] = useState({
@@ -136,7 +136,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
   // --- Computed ---
   const detectedInteractions = useMemo(() => {
     if (!patient) return [];
-    const activeMeds = patient.prescriptions.filter(m => !m.endDate); 
+    const activeMeds = patient.prescriptions.filter(m => m.status !== 'ended'); 
     const interactions: any[] = [];
 
     for (let i = 0; i < activeMeds.length; i++) {
@@ -321,21 +321,54 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
   const saveMedication = () => {
     if (!medForm.name) return;
     const newMed: Medication = {
-      id: Date.now().toString(),
-      ...medForm
+      id: editingMedId || Date.now().toString(),
+      ...medForm,
+      status: 'active' // Always active when saving, user ends it manually
     };
+
+    let updatedMeds;
+    if (editingMedId) {
+       updatedMeds = patient.prescriptions.map(m => m.id === editingMedId ? { ...m, ...newMed } : m);
+    } else {
+       updatedMeds = [...patient.prescriptions, newMed];
+    }
+
     updatePatient({
       ...patient,
-      prescriptions: [...patient.prescriptions, newMed]
+      prescriptions: updatedMeds
     });
     setMedForm({ name: '', route: '', dose: '', frequency: '', startDate: new Date().toISOString().slice(0, 10), endDate: '', isContinuous: false });
+    setEditingMedId(null);
+  };
+
+  const editMedication = (med: Medication) => {
+     setEditingMedId(med.id);
+     setMedForm({
+        name: med.name,
+        route: med.route,
+        dose: med.dose,
+        frequency: med.frequency,
+        startDate: med.startDate,
+        endDate: med.endDate || '',
+        isContinuous: med.isContinuous
+     });
+     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const toggleMedStatus = (id: string, newStatus: 'active' | 'ended') => {
+     updatePatient({
+       ...patient,
+       prescriptions: patient.prescriptions.map(m => m.id === id ? { ...m, status: newStatus } : m)
+     });
   };
 
   const removeMedication = (id: string) => {
-     updatePatient({
-       ...patient,
-       prescriptions: patient.prescriptions.filter(m => m.id !== id)
-     });
+     if(window.confirm("Excluir permanentemente este registro de medicação?")) {
+        updatePatient({
+          ...patient,
+          prescriptions: patient.prescriptions.filter(m => m.id !== id)
+        });
+     }
   };
 
   // Diagnosis Handlers
@@ -534,13 +567,13 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
         {/* Current Meds Summary */}
         <Card title="Medicações em Uso">
            <ul className="space-y-1 text-sm text-slate-700">
-             {patient.prescriptions.filter(m => !m.endDate).slice(0, 5).map(m => (
+             {patient.prescriptions.filter(m => m.status !== 'ended').slice(0, 5).map(m => (
                <li key={m.id} className="flex items-center gap-2">
                  <Pill size={14} className="text-blue-500" /> {m.name}
                </li>
              ))}
-             {patient.prescriptions.filter(m => !m.endDate).length === 0 && <p className="text-slate-400 italic">Nenhuma.</p>}
-             {patient.prescriptions.filter(m => !m.endDate).length > 5 && <li className="text-blue-600 text-xs pt-1">Ver todas...</li>}
+             {patient.prescriptions.filter(m => m.status !== 'ended').length === 0 && <p className="text-slate-400 italic">Nenhuma.</p>}
+             {patient.prescriptions.filter(m => m.status !== 'ended').length > 5 && <li className="text-blue-600 text-xs pt-1">Ver todas...</li>}
            </ul>
         </Card>
       </div>
@@ -642,7 +675,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
 
   const ProntuarioDia = () => {
     const activeDiags = patient.diagnostics.filter(d => d.status === 'Ativo');
-    const activeMeds = patient.prescriptions.filter(m => !m.endDate);
+    const activeMeds = patient.prescriptions.filter(m => m.status !== 'ended');
     const lastEvo = patient.evolutions[0];
     const lastVital = patient.vitalSigns[0];
     const activeAlerts = patient.alerts.filter(a => !a.isResolved);
@@ -886,6 +919,8 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
          {activeTab === 'prontuario' && <ProntuarioDia />}
          {activeTab === 'cadastro' && <RegistrationTab />}
          {activeTab === 'anamnese' && <AnamnesisTab />}
+         
+         {/* ... (Other tabs remain similar, skipping unchanged blocks to focus on Medication update below) ... */}
          
          {activeTab === 'diagnosticos' && (
            <div className="space-y-6">
@@ -1169,7 +1204,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
 
          {activeTab === 'medicacoes' && (
            <div className="space-y-6">
-             <Card title="Prescrever Medicação">
+             <Card title={editingMedId ? "Editar Medicação" : "Prescrever Medicação"}>
                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                   <div className="lg:col-span-2">
                     <Input label="Nome do Medicamento" value={medForm.name} onChange={e => setMedForm({...medForm, name: e.target.value})} className="bg-white text-slate-900" />
@@ -1185,36 +1220,59 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                   {!medForm.isContinuous && (
                     <Input label="Fim" type="date" value={medForm.endDate} onChange={e => setMedForm({...medForm, endDate: e.target.value})} className="bg-white text-slate-900" />
                   )}
-                  <Button onClick={saveMedication} className="mb-4 w-full md:w-auto"><Plus size={18}/> Adicionar</Button>
+                  <div className="flex gap-2 w-full md:w-auto mb-4">
+                     {editingMedId && <Button onClick={() => { setEditingMedId(null); setMedForm({ name: '', route: '', dose: '', frequency: '', startDate: new Date().toISOString().slice(0, 10), endDate: '', isContinuous: false }); }} variant="secondary">Cancelar</Button>}
+                     <Button onClick={saveMedication} className="w-full"><Plus size={18}/> {editingMedId ? 'Atualizar' : 'Adicionar'}</Button>
+                  </div>
                </div>
              </Card>
 
              <Card title="Prescrições Ativas">
                 <div className="space-y-3">
-                   {patient.prescriptions.filter(m => !m.endDate).map(m => (
-                     <div key={m.id} className="flex justify-between items-center p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                        <div className="flex items-start gap-3">
-                           <div className="mt-1 bg-blue-200 p-1.5 rounded text-blue-700"><Pill size={16}/></div>
-                           <div>
-                             <p className="font-bold text-slate-800">{m.name} <span className="font-normal text-sm text-slate-600">- {m.dose}</span></p>
-                             <p className="text-sm text-slate-500">{m.route} • {m.frequency} • Início: {formatDate(m.startDate)}</p>
-                           </div>
-                        </div>
-                        <button onClick={() => removeMedication(m.id)} className="text-slate-400 hover:text-red-600 p-2"><Trash2 size={16}/></button>
-                     </div>
-                   ))}
-                   {patient.prescriptions.filter(m => !m.endDate).length === 0 && <p className="text-slate-400 italic">Nenhuma prescrição ativa.</p>}
+                   {patient.prescriptions.filter(m => m.status === 'active' || (m.status === undefined && (!m.endDate || m.endDate >= new Date().toISOString().slice(0,10)))).map(m => {
+                     const today = new Date().toISOString().slice(0,10);
+                     const isExpired = m.endDate && m.endDate < today;
+                     const expiresToday = m.endDate && m.endDate === today;
+                     
+                     return (
+                       <div key={m.id} className={`flex justify-between items-center p-4 rounded-lg border ${isExpired ? 'bg-red-50 border-red-200' : expiresToday ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-100'}`}>
+                          <div className="flex items-start gap-3 flex-1">
+                             <div className={`mt-1 p-1.5 rounded ${isExpired ? 'bg-red-200 text-red-700' : 'bg-blue-200 text-blue-700'}`}><Pill size={16}/></div>
+                             <div className="flex-1">
+                               <div className="flex items-center flex-wrap gap-2">
+                                 <p className="font-bold text-slate-800">{m.name} <span className="font-normal text-sm text-slate-600">- {m.dose}</span></p>
+                                 {isExpired && <span className="text-[10px] px-2 py-0.5 bg-red-200 text-red-800 rounded-full font-bold">Vencido</span>}
+                                 {expiresToday && <span className="text-[10px] px-2 py-0.5 bg-yellow-200 text-yellow-800 rounded-full font-bold">Vence Hoje</span>}
+                               </div>
+                               <p className="text-sm text-slate-500">{m.route} • {m.frequency} • Início: {formatDate(m.startDate)} {m.endDate && `• Fim: ${formatDate(m.endDate)}`}</p>
+                             </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <button onClick={() => editMedication(m)} className="text-slate-400 hover:text-blue-600 p-2 bg-white rounded-full shadow-sm" title="Editar"><Pencil size={16}/></button>
+                             <button onClick={() => toggleMedStatus(m.id, 'ended')} className="text-slate-400 hover:text-green-600 p-2 bg-white rounded-full shadow-sm" title="Finalizar Tratamento"><CheckSquare size={16}/></button>
+                             <button onClick={() => removeMedication(m.id)} className="text-slate-400 hover:text-red-600 p-2 bg-white rounded-full shadow-sm" title="Excluir Registro"><Trash2 size={16}/></button>
+                          </div>
+                       </div>
+                     );
+                   })}
+                   {patient.prescriptions.filter(m => m.status === 'active' || (m.status === undefined && (!m.endDate || m.endDate >= new Date().toISOString().slice(0,10)))).length === 0 && <p className="text-slate-400 italic">Nenhuma prescrição ativa.</p>}
                 </div>
              </Card>
 
-             {patient.prescriptions.some(m => m.endDate) && (
+             {patient.prescriptions.some(m => m.status === 'ended' || (m.status === undefined && m.endDate && m.endDate < new Date().toISOString().slice(0,10))) && (
                <Card title="Prescrições Encerradas">
                   <div className="space-y-2 opacity-75">
-                     {patient.prescriptions.filter(m => m.endDate).map(m => (
+                     {patient.prescriptions.filter(m => m.status === 'ended' || (m.status === undefined && m.endDate && m.endDate < new Date().toISOString().slice(0,10))).map(m => (
                        <div key={m.id} className="flex justify-between items-center p-3 bg-slate-50 border border-slate-100 rounded-lg text-sm">
                           <div>
                              <span className="font-semibold text-slate-700 line-through">{m.name}</span>
-                             <span className="text-slate-500 ml-2">Encerrado: {formatDate(m.endDate!)}</span>
+                             <span className="text-slate-500 ml-2">{m.dose} ({m.frequency})</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                             <span className="text-xs text-slate-400 italic mr-2">
+                                {m.status === 'ended' ? 'Finalizado Manualmente' : `Fim: ${formatDate(m.endDate!)}`}
+                             </span>
+                             <button onClick={() => toggleMedStatus(m.id, 'active')} className="text-slate-400 hover:text-blue-600 p-1" title="Reativar"><StopCircle size={16}/></button>
                           </div>
                        </div>
                      ))}

@@ -30,6 +30,7 @@ export interface Medication {
   startDate: string;
   endDate?: string; // Empty or "Uso contínuo" logic handled in UI
   isContinuous: boolean;
+  status?: 'active' | 'ended' | 'suspended';
 }
 
 export interface Evolution {

@@ -832,8 +832,6 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
          {activeTab === 'cadastro' && <RegistrationTab />}
          {activeTab === 'anamnese' && <AnamnesisTab />}
          
-         {/* ... (Other tabs remain similar, skipping unchanged blocks to focus on Medication update below) ... */}
-         
          {activeTab === 'diagnosticos' && (
            <div className="space-y-6">
              <Card title="Novo Diagnóstico">
@@ -1309,7 +1307,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                    </div>
                 </div>
                 
-                <div className="flex-1 min-h-[400px] w-full">
+                <div className="w-full h-[500px] mt-4">
                    {(() => {
                       let data: any[] = [];
                       if(chartType === 'lab') {

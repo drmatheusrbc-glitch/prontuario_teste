@@ -47,7 +47,7 @@ export const PatientRegistration: React.FC<RegistrationProps> = ({ onAddPatient 
       bmi: calculateBMI(Number(form.weight), Number(form.height)),
       // Defaults
       hpp: '', continuousMeds: '', habits: '', hda: '', allergies: '',
-      diagnostics: [], evolutions: [], vitalSigns: [], labResults: [], prescriptions: [], imaging: [], alerts: []
+      diagnostics: [], evolutions: [], vitalSigns: [], labResults: [], prescriptions: [], imaging: [], alerts: [], cultures: []
     };
 
     onAddPatient(newPatient);

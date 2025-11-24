@@ -6,9 +6,9 @@ import {
   FlaskConical, Image as ImageIcon, Pill, BarChart2, 
   AlertTriangle, Plus, Save, Trash2, Download, CheckCircle, Clock, X, Menu,
   Printer, ClipboardList, Paperclip, CloudLightning, GitCompare, ExternalLink, Search,
-  Pencil, Calendar, UserCog, CheckSquare, StopCircle
+  Pencil, Calendar, UserCog, CheckSquare, StopCircle, Microscope
 } from 'lucide-react';
-import { Patient, Sexo, LAB_FIELDS, VitalSign, Evolution, LabResult, Medication, ImagingExam, Diagnosis } from '../types';
+import { Patient, Sexo, LAB_FIELDS, VitalSign, Evolution, LabResult, Medication, ImagingExam, Diagnosis, Culture } from '../types';
 import { Card, Button, Input, TextArea, Select } from './UiComponents';
 import { formatDate, formatDateTime, calculateCKDEPI, calculateDaysHospitalized, calculateBMI } from '../services/utils';
 import {
@@ -69,6 +69,11 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
 
   // Alerts
   const [alertText, setAlertText] = useState('');
+
+  // Cultures
+  const [cultureForm, setCultureForm] = useState({
+    type: '', requestDate: new Date().toISOString().slice(0, 10)
+  });
 
   // Charts
   const [chartMetric, setChartMetric] = useState('leucocitos');
@@ -327,6 +332,50 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
   const toggleAlert = (id: string) => {
     const updated = patient.alerts.map(a => a.id === id ? { ...a, isResolved: !a.isResolved } : a);
     updatePatient({ ...patient, alerts: updated });
+  };
+
+  const deleteAlert = (id: string) => {
+    if (window.confirm('Excluir esta pendência/alerta?')) {
+      updatePatient({
+        ...patient,
+        alerts: patient.alerts.filter(a => a.id !== id)
+      });
+    }
+  };
+
+  // Culture Handlers
+  const saveCulture = () => {
+    if (!cultureForm.type) return;
+    const newCulture: Culture = {
+      id: Date.now().toString(),
+      type: cultureForm.type,
+      requestDate: cultureForm.requestDate,
+      status: 'pending',
+      result: ''
+    };
+    // Ensure cultures array exists
+    const currentCultures = patient.cultures || [];
+    updatePatient({
+      ...patient,
+      cultures: [newCulture, ...currentCultures]
+    });
+    setCultureForm({ type: '', requestDate: new Date().toISOString().slice(0, 10) });
+  };
+
+  const updateCultureResult = (id: string, result: string) => {
+    const updatedCultures = (patient.cultures || []).map(c => 
+      c.id === id ? { ...c, result: result, status: result ? 'completed' : 'pending' } as Culture : c
+    );
+    updatePatient({ ...patient, cultures: updatedCultures });
+  };
+
+  const deleteCulture = (id: string) => {
+    if (window.confirm('Excluir esta cultura?')) {
+      updatePatient({
+        ...patient,
+        cultures: (patient.cultures || []).filter(c => c.id !== id)
+      });
+    }
   };
 
   // Imaging Handlers
@@ -804,6 +853,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
              { id: 'evolucao', label: 'Evolução e Conduta', icon: ClipboardList },
              { id: 'sinais', label: 'Sinais Vitais', icon: Activity },
              { id: 'exames', label: 'Exames Laboratoriais', icon: FlaskConical },
+             { id: 'culturas', label: 'Culturas', icon: Microscope },
              { id: 'imagem', label: 'Exames de Imagem', icon: ImageIcon },
              { id: 'medicacoes', label: 'Medicações', icon: Pill },
              { id: 'graficos', label: 'Análise Gráfica', icon: BarChart2 },
@@ -1112,6 +1162,76 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
            </div>
          )}
 
+         {activeTab === 'culturas' && (
+           <div className="space-y-6">
+             <Card title="Solicitar Cultura" action={<Button onClick={saveCulture}><Plus size={16} className="mr-2"/> Adicionar</Button>}>
+               <div className="flex flex-col md:flex-row gap-4 items-end">
+                 <div className="flex-1 w-full">
+                   <Input 
+                     label="Tipo de Cultura / Local" 
+                     value={cultureForm.type} 
+                     onChange={e => setCultureForm({...cultureForm, type: e.target.value})} 
+                     placeholder="Ex: Hemocultura, Urocultura, Ponta de Cateter..."
+                     className="bg-white text-slate-900"
+                   />
+                 </div>
+                 <div className="w-full md:w-48">
+                   <Input 
+                     label="Data Solicitação" 
+                     type="date" 
+                     value={cultureForm.requestDate} 
+                     onChange={e => setCultureForm({...cultureForm, requestDate: e.target.value})} 
+                     className="bg-white text-slate-900" 
+                   />
+                 </div>
+               </div>
+             </Card>
+
+             <Card title="Histórico de Culturas">
+               <div className="space-y-3">
+                 {(patient.cultures || []).map(culture => (
+                   <div key={culture.id} className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm">
+                     <div className="flex flex-col md:flex-row justify-between gap-4">
+                       <div className="flex-1">
+                         <h4 className="font-bold text-lg text-slate-800 flex items-center gap-2">
+                           <FlaskConical size={18} className="text-blue-500"/> {culture.type}
+                         </h4>
+                         <p className="text-sm text-slate-500">Solicitado em: {formatDate(culture.requestDate)}</p>
+                         
+                         <div className="mt-3">
+                           <label className="block text-xs font-bold text-slate-700 uppercase mb-1">Resultado:</label>
+                           <textarea 
+                             className="w-full text-sm p-2 bg-slate-50 border border-slate-200 rounded text-slate-900 focus:bg-white focus:border-blue-400 transition-colors"
+                             rows={2}
+                             placeholder="Digite o resultado (bactéria, antibiograma, ou 'Negativo')..."
+                             value={culture.result || ''}
+                             onChange={(e) => updateCultureResult(culture.id, e.target.value)}
+                           />
+                         </div>
+                       </div>
+                       <div className="flex flex-col justify-between items-end">
+                         <span className={`px-2 py-1 rounded text-xs font-bold ${culture.result ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                           {culture.result ? 'Resultado Disponível' : 'Pendente'}
+                         </span>
+                         <button 
+                           onClick={() => deleteCulture(culture.id)}
+                           className="text-slate-400 hover:text-red-600 p-2 hover:bg-red-50 rounded-full transition-colors mt-2"
+                           title="Excluir Cultura"
+                         >
+                           <Trash2 size={18} />
+                         </button>
+                       </div>
+                     </div>
+                   </div>
+                 ))}
+                 {(!patient.cultures || patient.cultures.length === 0) && (
+                   <p className="text-slate-400 italic text-center py-8">Nenhuma cultura solicitada.</p>
+                 )}
+               </div>
+             </Card>
+           </div>
+         )}
+
          {activeTab === 'medicacoes' && (
            <div className="space-y-6">
              <Card title={editingMedId ? "Editar Medicação" : "Prescrever Medicação"}>
@@ -1394,7 +1514,10 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                      <span className={`flex-1 ${a.isResolved ? 'line-through text-slate-500' : 'text-red-800 font-medium'}`}>
                        {a.text}
                      </span>
-                     {a.isResolved && <span className="text-xs text-slate-400">Resolvido</span>}
+                     {a.isResolved && <span className="text-xs text-slate-400 mr-2">Resolvido</span>}
+                     <button onClick={() => deleteAlert(a.id)} className="text-slate-400 hover:text-red-600 p-1 rounded hover:bg-slate-100" title="Excluir">
+                        <Trash2 size={16}/>
+                     </button>
                   </div>
                 ))}
                 {patient.alerts.length === 0 && <p className="text-slate-400 italic text-center py-8">Nenhuma pendência registrada.</p>}

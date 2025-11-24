@@ -48,6 +48,15 @@ export interface ImagingExam {
   attachmentType?: string; // MIME type
 }
 
+export interface Culture {
+  id: string;
+  type: string; // e.g., Hemocultura, Urocultura, Ponta de Cateter
+  requestDate: string;
+  resultDate?: string;
+  result?: string; // Description of bacteria/antibiogram or "Negative"
+  status: 'pending' | 'completed';
+}
+
 export interface Alert {
   id: string;
   text: string;
@@ -98,6 +107,7 @@ export interface Patient {
   labResults: LabResult[];
   prescriptions: Medication[];
   imaging: ImagingExam[];
+  cultures: Culture[];
   alerts: Alert[];
 }
 

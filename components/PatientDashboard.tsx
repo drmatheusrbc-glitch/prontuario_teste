@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -448,6 +447,12 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                 <span>|</span>
                 <span>IMC: {patient.bmi}</span>
              </div>
+             {patient.allergies && (
+               <div className="mt-4 flex items-center gap-2 bg-red-500/20 border border-red-400/40 px-3 py-1.5 rounded-md w-fit backdrop-blur-sm">
+                 <span className="text-red-100 font-bold text-xs uppercase tracking-wider flex items-center gap-1"><AlertTriangle size={12}/> Alergia:</span>
+                 <span className="text-white font-semibold text-sm">{patient.allergies}</span>
+               </div>
+             )}
           </div>
           <div className="text-right md:text-right">
             <p className="text-xs opacity-75 uppercase tracking-wider">Admissão</p>

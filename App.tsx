@@ -16,14 +16,21 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
     
-    const inputLogin = email.trim().toLowerCase();
+    // Normalização para evitar erros de digitação comuns (espaços extras, maiúsculas no email)
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim(); // Remove espaços antes/depois da senha caso tenha sido copiada incorretamente
 
-    // Case insensitive check for email
-    if (
-      (inputLogin === 'drmatheusrbc@gmail.com' && password === '150199') ||
-      (inputLogin === 'marilia' && password === 'marilia') ||
-      (inputLogin === 'marilia@scrp.com' && password === 'marilia')
-    ) {
+    const validCredentials = [
+      { user: 'drmatheusrbc@gmail.com', pass: '150199' },
+      { user: 'marilia', pass: 'marilia' },
+      { user: 'marilia@scrp.com', pass: 'marilia' }
+    ];
+
+    const isValid = validCredentials.some(
+      cred => cred.user === cleanEmail && cred.pass === cleanPassword
+    );
+
+    if (isValid) {
       onLogin();
     } else {
       setError('Email ou senha incorretos.');

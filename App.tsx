@@ -17,8 +17,13 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
     
+    const inputLogin = email.trim().toLowerCase();
+
     // Case insensitive check for email
-    if (email.trim().toLowerCase() === 'drmatheusrbc@gmail.com' && password === '150199') {
+    if (
+      (inputLogin === 'drmatheusrbc@gmail.com' && password === '150199') ||
+      (inputLogin === 'marilia' && password === 'marilia')
+    ) {
       onLogin();
     } else {
       setError('Email ou senha incorretos.');
@@ -38,16 +43,16 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
         <Card>
           <form onSubmit={handleSubmit} className="space-y-6">
             <Input 
-              label="Email" 
-              type="email" 
-              placeholder="seu@email.com" 
+              label="Email ou Usuário" 
+              type="text" 
+              placeholder="seu@email.com ou usuario" 
               value={email} 
               onChange={e => setEmail(e.target.value)} 
               required 
               className="bg-white"
               autoCapitalize="none"
               autoCorrect="off"
-              autoComplete="email"
+              autoComplete="username"
             />
             <Input 
               label="Senha" 

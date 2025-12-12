@@ -123,6 +123,8 @@ export const LAB_FIELDS = [
   { key: 'segmentados', label: 'Segmentados', unit: '%' },
   { key: 'linfocitos', label: 'Linfócitos', unit: '%' },
   { key: 'plaquetas', label: 'Plaquetas', unit: '/mm³' },
+  { key: 'inr', label: 'INR', unit: '' },
+  { key: 'ttpa', label: 'TTPA', unit: 'seg' },
   { key: 'ureia', label: 'Ureia', unit: 'mg/dL' },
   { key: 'creatinina', label: 'Creatinina', unit: 'mg/dL' },
   { key: 'tfg', label: 'TFG (CKD-EPI)', unit: 'ml/min/1.73m²' }, // Calc
@@ -133,6 +135,7 @@ export const LAB_FIELDS = [
   { key: 'fosforo', label: 'Fósforo', unit: 'mg/dL' },
   { key: 'pcr', label: 'PCR', unit: 'mg/L' },
   { key: 'lactato', label: 'Lactato', unit: 'mmol/L' },
+  { key: 'troponina', label: 'Troponina', unit: 'ng/mL' },
   { key: 'tgo', label: 'TGO/AST', unit: 'U/L' },
   { key: 'tgp', label: 'TGP/ALT', unit: 'U/L' },
   { key: 'bt', label: 'Bilirrubina Total', unit: 'mg/dL' },

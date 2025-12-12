@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Patient, Sexo } from '../types';
 import { Card, Input, Select, Button } from './UiComponents';
 import { calculateBMI, calculateAge } from '../services/utils';
-import { UserPlus, Users, Activity, LogOut, Trash2, Database, Download, Upload, X, Cloud, CloudLightning } from 'lucide-react';
+import { UserPlus, Users, Activity, LogOut, Trash2, Database, Download, Upload, X, Cloud, CloudLightning, Bed, HeartPulse } from 'lucide-react';
 
 interface RegistrationProps {
   onAddPatient: (p: Patient) => void;
@@ -120,6 +120,7 @@ interface PatientListProps {
 export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, onLogout, onImport }) => {
   const navigate = useNavigate();
   const [showDataModal, setShowDataModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'enfermaria' | 'uti'>('enfermaria');
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -186,10 +187,10 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
                  <div className="relative pt-4 border-t border-slate-100">
                    <label className="block text-sm font-medium text-slate-700 mb-1">Importar para Nuvem</label>
                    <div className="relative">
-                     <Button variant="outline" className="w-full flex items-center justify-center gap-2 py-3 border-dashed border-2 hover:bg-blue-50 hover:border-blue-200">
+                     <Button variant="outline" className="w-full flex items-center justify-center gap-2 py-3" onClick={() => document.getElementById('file-upload')?.click()}>
                        <Upload size={18} /> Restaurar Backup
                      </Button>
-                     <input type="file" accept=".json" onChange={handleImport} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
+                     <input id="file-upload" type="file" accept=".json" onChange={handleImport} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
                    </div>
                    <p className="text-xs text-slate-500 mt-1 text-center">Os dados importados serão adicionados ao banco na nuvem.</p>
                  </div>
@@ -220,45 +221,82 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
        </header>
 
        <main className="max-w-7xl mx-auto px-4 py-8">
-         <div className="flex justify-between items-center mb-6">
-           <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2"><Users /> Pacientes Internados</h2>
-           <Button onClick={() => navigate('/register')}><UserPlus size={18} className="mr-2 inline" /> Novo Paciente</Button>
+         {/* Tabs Navigation */}
+         <div className="flex justify-center mb-8">
+            <div className="bg-slate-200 p-1 rounded-xl flex gap-1 shadow-inner">
+               <button 
+                  onClick={() => setActiveTab('enfermaria')}
+                  className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'enfermaria' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-slate-300/50'}`}
+               >
+                  <Bed size={18} /> Enfermaria
+               </button>
+               <button 
+                  onClick={() => setActiveTab('uti')}
+                  className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${activeTab === 'uti' ? 'bg-white text-blue-700 shadow-sm' : 'text-slate-600 hover:bg-slate-300/50'}`}
+               >
+                  <HeartPulse size={18} /> UTI
+               </button>
+            </div>
          </div>
 
-         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-           {patients.map(p => (
-             <div key={p.id} onClick={() => navigate(`/patient/${p.id}`)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all group relative">
-                <div className="flex justify-between items-start">
-                   <div>
-                     <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600">{p.firstName} {p.lastName}</h3>
-                     <p className="text-sm text-slate-500">{p.sex}, {p.age} anos</p>
-                   </div>
-                   <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
-                     Leito {p.bed}
-                   </span>
-                </div>
-                <div className="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 space-y-1">
-                   <p><strong>Hospital:</strong> {p.hospital}</p>
-                   <p><strong>Admissão:</strong> {new Date(p.admissionDate).toLocaleDateString('pt-BR')}</p>
-                   <p><strong>Diagnósticos:</strong> {p.diagnostics.length > 0 ? p.diagnostics[0].name + (p.diagnostics.length > 1 ? '...' : '') : '-'}</p>
-                </div>
-                
-                <button 
-                  onClick={(e) => handleDeleteClick(e, p.id)}
-                  className="absolute top-4 right-4 p-2 bg-white rounded-full text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors shadow-sm border border-transparent hover:border-red-100 opacity-0 group-hover:opacity-100"
-                  title="Excluir paciente"
-                >
-                  <Trash2 size={16} />
-                </button>
+         {/* Enfermaria Content */}
+         {activeTab === 'enfermaria' && (
+           <div className="animate-fade-in">
+             <div className="flex justify-between items-center mb-6">
+               <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2"><Users /> Pacientes na Enfermaria</h2>
+               <Button onClick={() => navigate('/register')}><UserPlus size={18} className="mr-2 inline" /> Novo Paciente</Button>
              </div>
-           ))}
-           {patients.length === 0 && (
-             <div className="col-span-full text-center py-12 bg-white rounded-lg border border-dashed border-slate-300">
-                <p className="text-slate-500">Nenhum paciente cadastrado na nuvem.</p>
-                <Button variant="outline" className="mt-4" onClick={() => navigate('/register')}>Cadastrar Primeiro Paciente</Button>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+               {patients.map(p => (
+                 <div key={p.id} onClick={() => navigate(`/patient/${p.id}`)} className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 cursor-pointer hover:shadow-md hover:border-blue-300 transition-all group relative">
+                    <div className="flex justify-between items-start">
+                       <div>
+                         <h3 className="text-lg font-bold text-slate-900 group-hover:text-blue-600">{p.firstName} {p.lastName}</h3>
+                         <p className="text-sm text-slate-500">{p.sex}, {p.age} anos</p>
+                       </div>
+                       <span className="bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded">
+                         Leito {p.bed}
+                       </span>
+                    </div>
+                    <div className="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 space-y-1">
+                       <p><strong>Hospital:</strong> {p.hospital}</p>
+                       <p><strong>Admissão:</strong> {new Date(p.admissionDate).toLocaleDateString('pt-BR')}</p>
+                       <p><strong>Diagnósticos:</strong> {p.diagnostics.length > 0 ? p.diagnostics[0].name + (p.diagnostics.length > 1 ? '...' : '') : '-'}</p>
+                    </div>
+                    
+                    <button 
+                      onClick={(e) => handleDeleteClick(e, p.id)}
+                      className="absolute top-4 right-4 p-2 bg-white rounded-full text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors shadow-sm border border-transparent hover:border-red-100 opacity-0 group-hover:opacity-100"
+                      title="Excluir paciente"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                 </div>
+               ))}
+               {patients.length === 0 && (
+                 <div className="col-span-full text-center py-12 bg-white rounded-lg border border-dashed border-slate-300">
+                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 text-slate-400 mb-4">
+                       <Bed size={32} />
+                    </div>
+                    <p className="text-slate-500 mb-4">Nenhum paciente cadastrado na enfermaria.</p>
+                    <Button variant="outline" onClick={() => navigate('/register')}>Cadastrar Primeiro Paciente</Button>
+                 </div>
+               )}
              </div>
-           )}
-         </div>
+           </div>
+         )}
+
+         {/* UTI Content */}
+         {activeTab === 'uti' && (
+            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-dashed border-slate-300 text-center animate-fade-in">
+               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-50 text-blue-500 mb-6">
+                  <Activity size={40} />
+               </div>
+               <h3 className="text-2xl font-bold text-slate-800 mb-2">Módulo UTI</h3>
+               <p className="text-slate-500 max-w-md mx-auto">Esta área está sendo preparada. Em breve você poderá gerenciar leitos de terapia intensiva, scores (SOFA/APACHE) e dispositivos invasivos.</p>
+            </div>
+         )}
        </main>
     </div>
   );

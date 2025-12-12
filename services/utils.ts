@@ -32,25 +32,24 @@ export const calculateDaysHospitalized = (admissionDate: string): number => {
   return diffDays; // Returns 0 if admitted today
 };
 
-export const calculateCKDEPI = (creatinine: number, age: number, sex: Sexo, ethnicity: string): number => {
+export const calculateCKDEPI = (creatinine: number, age: number, sex: Sexo): number => {
   if (!creatinine || !age) return 0;
   
   const isFemale = sex === Sexo.FEMININO;
-  const isBlack = ethnicity.toLowerCase().includes('negra') || ethnicity.toLowerCase().includes('preta');
-
+  
+  // CKD-EPI 2021 Creatinine Equation (Race-free)
+  // GFR = 142 * min(Scr/k, 1)^a * max(Scr/k, 1)^-1.200 * 0.9938^Age * 1.012 [if female]
+  
   const k = isFemale ? 0.7 : 0.9;
-  const a = isFemale ? -0.329 : -0.411;
+  const alpha = isFemale ? -0.241 : -0.302;
   
-  const part1 = Math.min(creatinine / k, 1) ** a;
-  const part2 = Math.max(creatinine / k, 1) ** -1.209;
-  const part3 = 0.993 ** age;
+  const factor1 = Math.min(creatinine / k, 1) ** alpha;
+  const factor2 = Math.max(creatinine / k, 1) ** -1.200;
+  const factor3 = 0.9938 ** age;
   
-  let tfg = 141 * part1 * part2 * part3;
+  let tfg = 142 * factor1 * factor2 * factor3;
   
-  if (isFemale) tfg *= 1.018;
-  // Note: 2021 CKD-EPI removed race coefficient, but keeping structure if user requested specific version previously. 
-  // If using strict 2021, race multiplier is removed. Assuming strict 2021 based on previous prompt:
-  // if (isBlack) tfg *= 1.159; // Removed for 2021 update
+  if (isFemale) tfg *= 1.012;
 
   return parseFloat(tfg.toFixed(1));
 };

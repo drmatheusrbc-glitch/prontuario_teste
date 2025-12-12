@@ -174,7 +174,7 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
     });
 
     if (cleanValues['creatinina']) {
-      cleanValues['tfg'] = calculateCKDEPI(cleanValues['creatinina'], patient.age, patient.sex, patient.ethnicity);
+      cleanValues['tfg'] = calculateCKDEPI(cleanValues['creatinina'], patient.age, patient.sex);
     }
 
     const newLab: LabResult = {

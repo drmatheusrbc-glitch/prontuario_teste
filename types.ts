@@ -6,13 +6,13 @@ export enum Sexo {
 
 export interface VitalSign {
   date: string; // ISO string
-  fc: number;
-  fr: number;
-  pas: number;
-  pad: number;
-  sato2: number;
-  dextro: number;
-  tax: number; // Temperatura Axilar
+  fc: string;
+  fr: string;
+  pas: string;
+  pad: string;
+  sato2: string;
+  dextro: string;
+  tax: string; // Temperatura Axilar
 }
 
 export interface LabResult {

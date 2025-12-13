@@ -136,13 +136,13 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
 
     const newVS: VitalSign = {
       date: !isNaN(dateObj.getTime()) ? dateObj.toISOString() : new Date().toISOString(),
-      fc: Number(vitalForm.fc) || 0,
-      fr: Number(vitalForm.fr) || 0,
-      pas: Number(vitalForm.pas) || 0,
-      pad: Number(vitalForm.pad) || 0,
-      sato2: Number(vitalForm.sato2) || 0,
-      dextro: Number(vitalForm.dextro) || 0,
-      tax: Number(vitalForm.tax) || 0,
+      fc: vitalForm.fc,
+      fr: vitalForm.fr,
+      pas: vitalForm.pas,
+      pad: vitalForm.pad,
+      sato2: vitalForm.sato2,
+      dextro: vitalForm.dextro,
+      tax: vitalForm.tax,
     };
     
     // Sort chronologically descending
@@ -1011,13 +1011,13 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                   <Input label="Hora" type="time" value={vitalForm.time} onChange={e => setVitalForm({...vitalForm, time: e.target.value})} className="bg-white text-slate-900" />
                </div>
                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-                 <Input label="PAS (mmHg)" type="number" value={vitalForm.pas} onChange={e => setVitalForm({...vitalForm, pas: e.target.value})} className="bg-white text-slate-900" />
-                 <Input label="PAD (mmHg)" type="number" value={vitalForm.pad} onChange={e => setVitalForm({...vitalForm, pad: e.target.value})} className="bg-white text-slate-900" />
-                 <Input label="FC (bpm)" type="number" value={vitalForm.fc} onChange={e => setVitalForm({...vitalForm, fc: e.target.value})} className="bg-white text-slate-900" />
-                 <Input label="FR (irpm)" type="number" value={vitalForm.fr} onChange={e => setVitalForm({...vitalForm, fr: e.target.value})} className="bg-white text-slate-900" />
-                 <Input label="SatO2 (%)" type="number" value={vitalForm.sato2} onChange={e => setVitalForm({...vitalForm, sato2: e.target.value})} className="bg-white text-slate-900" />
-                 <Input label="Temp (ºC)" type="number" step="0.1" value={vitalForm.tax} onChange={e => setVitalForm({...vitalForm, tax: e.target.value})} className="bg-white text-slate-900" />
-                 <Input label="Dextro (mg/dL)" type="number" value={vitalForm.dextro} onChange={e => setVitalForm({...vitalForm, dextro: e.target.value})} className="bg-white text-slate-900" />
+                 <Input label="PAS (mmHg)" type="text" placeholder="Ex: 120-140" value={vitalForm.pas} onChange={e => setVitalForm({...vitalForm, pas: e.target.value})} className="bg-white text-slate-900" />
+                 <Input label="PAD (mmHg)" type="text" placeholder="Ex: 80-90" value={vitalForm.pad} onChange={e => setVitalForm({...vitalForm, pad: e.target.value})} className="bg-white text-slate-900" />
+                 <Input label="FC (bpm)" type="text" placeholder="Ex: 80" value={vitalForm.fc} onChange={e => setVitalForm({...vitalForm, fc: e.target.value})} className="bg-white text-slate-900" />
+                 <Input label="FR (irpm)" type="text" placeholder="Ex: 16" value={vitalForm.fr} onChange={e => setVitalForm({...vitalForm, fr: e.target.value})} className="bg-white text-slate-900" />
+                 <Input label="SatO2 (%)" type="text" placeholder="Ex: 98" value={vitalForm.sato2} onChange={e => setVitalForm({...vitalForm, sato2: e.target.value})} className="bg-white text-slate-900" />
+                 <Input label="Temp (ºC)" type="text" placeholder="Ex: 36.5" value={vitalForm.tax} onChange={e => setVitalForm({...vitalForm, tax: e.target.value})} className="bg-white text-slate-900" />
+                 <Input label="Dextro (mg/dL)" type="text" placeholder="Ex: 100" value={vitalForm.dextro} onChange={e => setVitalForm({...vitalForm, dextro: e.target.value})} className="bg-white text-slate-900" />
                </div>
              </Card>
 
@@ -1448,8 +1448,9 @@ export const PatientDashboard: React.FC<DashboardProps> = ({ patients, updatePat
                             .sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime())
                             .map(r => ({
                                date: formatDateTime(r.date),
-                               value: (r as any)[chartMetric]
-                            })).filter(d => d.value !== undefined && d.value !== null && d.value !== '');
+                               // Parse float to handle ranges like "120-160" (takes 120) for charting
+                               value: parseFloat((r as any)[chartMetric] as string)
+                            })).filter(d => !isNaN(d.value));
                       }
 
                       if (data.length === 0) {

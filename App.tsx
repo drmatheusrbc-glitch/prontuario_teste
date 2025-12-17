@@ -120,7 +120,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error(err);
       // Mostra a mensagem real do erro para ajudar a corrigir o banco
-      setSyncError(`Erro de conexão com o banco: ${err.message || 'Verifique se a tabela patients existe e tem a coluna data'}`);
+      setSyncError(`Erro de conexão com o banco: ${err.message || String(err) || 'Verifique se a tabela patients existe e tem a coluna data'}`);
     } finally {
       setLoading(false);
     }
@@ -132,7 +132,7 @@ const App: React.FC = () => {
     try {
       await savePatient(newPatient);
     } catch (err: any) {
-      setSyncError(`Erro ao salvar: ${err.message}`);
+      setSyncError(`Erro ao salvar: ${err.message || String(err)}`);
       // Em um app real, faríamos rollback aqui
     }
   };
@@ -142,7 +142,7 @@ const App: React.FC = () => {
     try {
       await savePatient(updatedPatient);
     } catch (err: any) {
-      setSyncError(`Erro ao atualizar: ${err.message}`);
+      setSyncError(`Erro ao atualizar: ${err.message || String(err)}`);
     }
   };
 
@@ -152,7 +152,7 @@ const App: React.FC = () => {
       try {
         await deletePatient(id);
       } catch (err: any) {
-        setSyncError(`Erro ao excluir: ${err.message}`);
+        setSyncError(`Erro ao excluir: ${err.message || String(err)}`);
         loadData(); // Reload to restore sync
       }
     }

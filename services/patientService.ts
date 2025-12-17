@@ -8,7 +8,8 @@ export const getPatients = async (): Promise<Patient[]> => {
   
   if (error) {
     console.error('Error fetching patients:', error);
-    throw error;
+    // Lança um erro com a mensagem específica do Supabase (ex: "relation public.patients does not exist")
+    throw new Error(error.message);
   }
   
   return data.map((row: any) => row.data) as Patient[];
@@ -22,7 +23,7 @@ export const savePatient = async (patient: Patient) => {
 
   if (error) {
     console.error('Error saving patient:', error);
-    throw error;
+    throw new Error(error.message);
   }
 };
 
@@ -34,6 +35,6 @@ export const deletePatient = async (id: string) => {
 
   if (error) {
     console.error('Error deleting patient:', error);
-    throw error;
+    throw new Error(error.message);
   }
 };

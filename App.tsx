@@ -117,9 +117,10 @@ const App: React.FC = () => {
     try {
       const data = await getPatients();
       setPatients(data);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setSyncError('Erro ao carregar dados da nuvem. Verifique sua conexão ou se a tabela "patients" foi criada no Supabase.');
+      // Mostra a mensagem real do erro para ajudar a corrigir o banco
+      setSyncError(`Erro de conexão com o banco: ${err.message || 'Verifique se a tabela patients existe e tem a coluna data'}`);
     } finally {
       setLoading(false);
     }
@@ -130,9 +131,9 @@ const App: React.FC = () => {
     setPatients(prev => [newPatient, ...prev]);
     try {
       await savePatient(newPatient);
-    } catch (err) {
-      setSyncError('Erro ao salvar paciente. Tente novamente.');
-      // Rollback could go here, but for simplicity we keep local state and error message
+    } catch (err: any) {
+      setSyncError(`Erro ao salvar: ${err.message}`);
+      // Em um app real, faríamos rollback aqui
     }
   };
 
@@ -140,8 +141,8 @@ const App: React.FC = () => {
     setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
     try {
       await savePatient(updatedPatient);
-    } catch (err) {
-      setSyncError('Erro ao atualizar paciente.');
+    } catch (err: any) {
+      setSyncError(`Erro ao atualizar: ${err.message}`);
     }
   };
 
@@ -150,8 +151,8 @@ const App: React.FC = () => {
       setPatients(prev => prev.filter(p => p.id !== id));
       try {
         await deletePatient(id);
-      } catch (err) {
-        setSyncError('Erro ao excluir paciente da nuvem.');
+      } catch (err: any) {
+        setSyncError(`Erro ao excluir: ${err.message}`);
         loadData(); // Reload to restore sync
       }
     }
@@ -195,9 +196,10 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       {syncError && (
-        <div className="bg-red-50 text-red-700 p-3 text-center text-sm flex justify-center items-center gap-2 sticky top-0 z-[100]">
-          <AlertCircle size={16} /> {syncError}
-          <button onClick={loadData} className="underline ml-2">Tentar Novamente</button>
+        <div className="bg-red-50 text-red-700 p-3 text-center text-sm flex justify-center items-center gap-2 sticky top-0 z-[100] shadow-sm">
+          <AlertCircle size={16} /> 
+          <span className="font-medium">{syncError}</span>
+          <button onClick={loadData} className="underline ml-2 hover:text-red-900">Tentar Novamente</button>
         </div>
       )}
       <Routes>

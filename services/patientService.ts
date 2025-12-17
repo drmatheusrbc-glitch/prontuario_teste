@@ -20,35 +20,60 @@ const setLocalData = (data: Patient[]) => {
 
 export const getPatients = async (): Promise<Patient[]> => {
   try {
-    // Tenta buscar da nuvem
+    // 1. Busca dados da nuvem (Supabase)
     const { data, error } = await supabase
       .from('patients')
       .select('data');
     
     if (error) throw error;
     
-    if (data) {
-      const patients = data.map((row: any) => row.data) as Patient[];
-      // Sucesso: Atualiza cache local
-      setLocalData(patients);
-      return patients;
+    const cloudPatients = data ? data.map((row: any) => row.data) as Patient[] : [];
+    
+    // 2. Sincronização Automática (Upload de dados criados offline)
+    // Se o usuário criou pacientes enquanto a chave estava errada ou offline,
+    // esses pacientes existem no 'localStorage' mas não no 'cloudPatients'.
+    // Vamos identificá-los e subir para a nuvem agora.
+    
+    const localPatients = getLocalData();
+    const cloudIds = new Set(cloudPatients.map(p => p.id));
+    
+    // Encontra pacientes que estão no local mas não na nuvem
+    const unsyncedPatients = localPatients.filter(p => !cloudIds.has(p.id));
+
+    if (unsyncedPatients.length > 0) {
+      console.log(`Detectados ${unsyncedPatients.length} pacientes não sincronizados. Enviando para nuvem...`);
+      
+      // Envia cada um para o Supabase
+      // Usamos Promise.all para enviar em paralelo
+      await Promise.all(unsyncedPatients.map(p => 
+        supabase.from('patients').upsert({ id: p.id, data: p })
+      ));
+      
+      // Combina as listas para o usuário ver tudo imediatamente
+      const combinedPatients = [...cloudPatients, ...unsyncedPatients];
+      
+      // Atualiza o cache local com a lista completa
+      setLocalData(combinedPatients);
+      return combinedPatients;
     }
-    return [];
+
+    // Se não há pendências, a nuvem é a fonte da verdade
+    setLocalData(cloudPatients);
+    return cloudPatients;
 
   } catch (err: any) {
     console.warn('Falha na conexão com nuvem, usando cache local:', err);
     
-    // Fallback: Retorna dados locais se existirem
+    // Fallback: Se a nuvem falhar, usa os dados locais
     const localData = getLocalData();
     if (localData.length > 0) {
-      return localData; // Retorna dados locais silenciosamente ou com aviso na UI
+      return localData; 
     }
     
-    // Se não tem dados locais e falhou a nuvem, lança erro para avisar o usuário
-    // Convertemos o erro para string para evitar [object Object]
+    // Tratamento de erro robusto
     const msg = err.message || (typeof err === 'object' ? JSON.stringify(err) : String(err));
     
-    // Se for erro de fetch (rede), retornamos array vazio para o app abrir em modo offline limpo
+    // Se for erro de rede, retorna vazio para não quebrar a UI
     if (msg.includes('Failed to fetch')) {
         return [];
     }
@@ -78,8 +103,9 @@ export const savePatient = async (patient: Patient) => {
     if (error) throw error;
   } catch (err: any) {
     console.error('Erro ao salvar na nuvem:', err);
-    // Lança erro amigável para a UI mostrar o aviso amarelo, mas os dados estão salvos localmente
-    throw new Error('Salvo apenas no dispositivo (Sem sincronização)');
+    // Não lança erro fatal, pois já salvou localmente. 
+    // Opcional: Lançar erro para UI mostrar aviso "Não sincronizado"
+    throw new Error('Salvo no dispositivo. Sincronização pendente.');
   }
 };
 
@@ -99,6 +125,6 @@ export const deletePatient = async (id: string) => {
     if (error) throw error;
   } catch (err: any) {
     console.error('Erro ao excluir da nuvem:', err);
-    throw new Error('Excluído apenas do dispositivo (Sem sincronização)');
+    throw new Error('Excluído apenas do dispositivo. Sincronização pendente.');
   }
 };

@@ -4,7 +4,7 @@ import { Patient } from './types';
 import { PatientRegistration, PatientList } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
 import { Card, Input, Button } from './components/UiComponents';
-import { Activity, Loader2, AlertCircle } from 'lucide-react';
+import { Activity, Loader2, AlertCircle, CloudOff } from 'lucide-react';
 import { getPatients, savePatient, deletePatient } from './services/patientService';
 
 const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
@@ -16,9 +16,8 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
     e.preventDefault();
     setError('');
     
-    // Normalização para evitar erros de digitação comuns (espaços extras, maiúsculas no email)
     const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim(); // Remove espaços antes/depois da senha caso tenha sido copiada incorretamente
+    const cleanPassword = password.trim();
 
     const validCredentials = [
       { user: 'drmatheusrbc@gmail.com', pass: '150199' },
@@ -104,7 +103,7 @@ const App: React.FC = () => {
     localStorage.setItem('recmed_auth', String(isAuthenticated));
   }, [isAuthenticated]);
 
-  // Fetch Patients from Supabase when authenticated
+  // Fetch Patients
   useEffect(() => {
     if (isAuthenticated) {
       loadData();
@@ -119,21 +118,23 @@ const App: React.FC = () => {
       setPatients(data);
     } catch (err: any) {
       console.error(err);
-      // Mostra a mensagem real do erro para ajudar a corrigir o banco
-      setSyncError(`Erro de conexão com o banco: ${err.message || String(err) || 'Verifique se a tabela patients existe e tem a coluna data'}`);
+      let msg = err.message || String(err);
+      if (msg.includes('Failed to fetch')) msg = "Erro de conexão. Verifique sua internet.";
+      if (msg === '[object Object]') msg = "Erro desconhecido na conexão.";
+      setSyncError(msg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleAddPatient = async (newPatient: Patient) => {
-    // Optimistic UI update
     setPatients(prev => [newPatient, ...prev]);
     try {
       await savePatient(newPatient);
+      // Se sucesso, limpa erro anterior se houver
+      setSyncError('');
     } catch (err: any) {
-      setSyncError(`Erro ao salvar: ${err.message || String(err)}`);
-      // Em um app real, faríamos rollback aqui
+      setSyncError(err.message);
     }
   };
 
@@ -141,8 +142,9 @@ const App: React.FC = () => {
     setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
     try {
       await savePatient(updatedPatient);
+      setSyncError('');
     } catch (err: any) {
-      setSyncError(`Erro ao atualizar: ${err.message || String(err)}`);
+      setSyncError(err.message);
     }
   };
 
@@ -151,26 +153,27 @@ const App: React.FC = () => {
       setPatients(prev => prev.filter(p => p.id !== id));
       try {
         await deletePatient(id);
+        setSyncError('');
       } catch (err: any) {
-        setSyncError(`Erro ao excluir: ${err.message || String(err)}`);
-        loadData(); // Reload to restore sync
+        setSyncError(err.message);
       }
     }
   };
 
   const handleImportPatients = async (data: Patient[]) => {
     if (Array.isArray(data)) {
-      if (window.confirm(`Isso importará ${data.length} pacientes para o banco de dados na nuvem. Deseja continuar?`)) {
+      if (window.confirm(`Isso importará ${data.length} pacientes. Deseja continuar?`)) {
          setLoading(true);
          try {
-           // Process in parallel or serial
            for (const p of data) {
              await savePatient(p);
            }
-           await loadData(); // Refresh from source of truth
-           alert('Importação para nuvem concluída com sucesso!');
+           // Recarrega para garantir consistência
+           const refreshedData = await getPatients();
+           setPatients(refreshedData);
+           alert('Importação concluída com sucesso!');
          } catch (err) {
-           alert('Erro durante a importação. Alguns dados podem não ter sido salvos.');
+           alert('Erro durante a importação. Dados salvos localmente.');
          } finally {
            setLoading(false);
          }
@@ -188,7 +191,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center flex-col gap-4">
         <Loader2 className="animate-spin text-blue-600" size={48} />
-        <p className="text-slate-500 font-medium">Carregando dados da nuvem...</p>
+        <p className="text-slate-500 font-medium">Carregando RecMed...</p>
       </div>
     );
   }
@@ -196,10 +199,10 @@ const App: React.FC = () => {
   return (
     <HashRouter>
       {syncError && (
-        <div className="bg-red-50 text-red-700 p-3 text-center text-sm flex justify-center items-center gap-2 sticky top-0 z-[100] shadow-sm">
-          <AlertCircle size={16} /> 
+        <div className="bg-amber-50 text-amber-800 border-b border-amber-200 p-2 text-center text-sm flex justify-center items-center gap-2 sticky top-0 z-[100] shadow-sm">
+          <CloudOff size={16} /> 
           <span className="font-medium">{syncError}</span>
-          <button onClick={loadData} className="underline ml-2 hover:text-red-900">Tentar Novamente</button>
+          <button onClick={loadData} className="underline ml-2 hover:text-amber-950 font-semibold">Tentar reconectar</button>
         </div>
       )}
       <Routes>

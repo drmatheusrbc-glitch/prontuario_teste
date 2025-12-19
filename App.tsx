@@ -60,12 +60,14 @@ const App: React.FC = () => {
     if (isAuthenticated) {
       loadData();
       
-      // Escuta mudanças em tempo real
+      // Subscribe to real-time database changes
       const unsubscribe = subscribeToChanges(() => {
-        if (!isUpdatingRef.current) loadData(true);
+        if (!isUpdatingRef.current) {
+          loadData(true);
+        }
       });
 
-      // Sincroniza ao voltar para a aba (ex: abriu o celular após fechar o PC)
+      // Re-sync when the browser window/tab regains focus
       const handleFocus = () => loadData(true);
       window.addEventListener('focus', handleFocus);
       
@@ -98,7 +100,7 @@ const App: React.FC = () => {
 
   const handleUpdatePatient = async (updatedPatient: Patient) => {
     isUpdatingRef.current = true;
-    // Atualiza UI imediatamente para melhor experiência
+    // UI Update (Optimistic)
     setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
     
     try {
@@ -107,7 +109,8 @@ const App: React.FC = () => {
       setLastSync(new Date());
     } catch (err: any) {
       setSyncStatus('error');
-      alert(err.message);
+      // If saving fails, we should ideally reload data to revert UI or inform user
+      console.error(err);
     } finally {
       isUpdatingRef.current = false;
     }
@@ -134,6 +137,8 @@ const App: React.FC = () => {
       try {
         await deletePatient(id);
         setLastSync(new Date());
+      } catch (err) {
+        setSyncStatus('error');
       } finally {
         isUpdatingRef.current = false;
       }
@@ -144,26 +149,27 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center flex-col gap-4">
         <Loader2 className="animate-spin text-blue-600" size={48} />
-        <p className="text-slate-500 font-medium">Sincronizando prontuários...</p>
+        <p className="text-slate-500 font-medium">Sincronizando banco de dados...</p>
       </div>
     );
   }
 
   return (
     <HashRouter>
-      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none">
+      {/* Synchronization Indicator Bar */}
+      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none transition-all duration-500">
         {syncStatus === 'syncing' && (
-          <div className="bg-blue-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 animate-pulse">
-            <RefreshCw size={10} className="animate-spin" /> Sincronizando com a Nuvem...
+          <div className="bg-blue-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 shadow-md">
+            <RefreshCw size={10} className="animate-spin" /> Atualizando...
           </div>
         )}
         {syncStatus === 'error' && (
-          <div className="bg-red-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto">
-            <CloudOff size={10} /> Erro de Conexão. <button onClick={() => loadData(true)} className="underline ml-2">Tentar agora</button>
+          <div className="bg-red-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto shadow-md">
+            <CloudOff size={10} /> Conexão Offline. <button onClick={() => loadData(true)} className="underline ml-2 font-bold">Reconectar</button>
           </div>
         )}
         {syncStatus === 'synced' && lastSync && (
-          <div className="bg-green-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 opacity-0 hover:opacity-100 transition-opacity">
+          <div className="bg-green-600/90 text-white text-[10px] py-0.5 px-4 flex justify-center items-center gap-2 opacity-0 hover:opacity-100 transition-opacity">
             <CheckCircle2 size={10} /> Última sincronização: {lastSync.toLocaleTimeString()}
           </div>
         )}
@@ -171,7 +177,7 @@ const App: React.FC = () => {
 
       <Routes>
         <Route path="/login" element={!isAuthenticated ? <LoginScreen onLogin={() => setIsAuthenticated(true)} /> : <Navigate to="/" />} />
-        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={() => setIsAuthenticated(false)} onImport={loadData as any} onRefresh={() => loadData(true)} isRefreshing={isRefreshing} /> : <Navigate to="/login" />} />
+        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={() => setIsAuthenticated(false)} onImport={() => loadData(true)} onRefresh={() => loadData(true)} isRefreshing={isRefreshing} /> : <Navigate to="/login" />} />
         <Route path="/register" element={isAuthenticated ? <PatientRegistration onAddPatient={handleAddPatient} /> : <Navigate to="/login" />} />
         <Route path="/patient/:id/*" element={isAuthenticated ? <PatientDashboard patients={patients} updatePatient={handleUpdatePatient} /> : <Navigate to="/login" />} />
       </Routes>

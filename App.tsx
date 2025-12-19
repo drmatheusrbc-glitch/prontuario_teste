@@ -5,7 +5,7 @@ import { Patient } from './types';
 import { PatientRegistration, PatientList } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
 import { Card, Input, Button } from './components/UiComponents';
-import { Activity, Loader2, CloudOff, CheckCircle2 } from 'lucide-react';
+import { Activity, Loader2, CloudOff, CheckCircle2, RefreshCw } from 'lucide-react';
 import { getPatients, savePatient, deletePatient, subscribeToChanges } from './services/patientService';
 
 const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
@@ -50,68 +50,78 @@ const App: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [syncError, setSyncError] = useState('');
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'error' | 'syncing'>('synced');
   const [lastSync, setLastSync] = useState<Date | null>(null);
   
-  // Ref para evitar loops de atualização
   const isUpdatingRef = useRef(false);
 
-  // Efeito de Autenticação e Carga Inicial
   useEffect(() => {
     localStorage.setItem('recmed_auth', String(isAuthenticated));
     if (isAuthenticated) {
       loadData();
       
-      // ATIVA SINCRONIZAÇÃO EM TEMPO REAL
+      // Escuta mudanças em tempo real
       const unsubscribe = subscribeToChanges(() => {
-        if (!isUpdatingRef.current) {
-          loadData(true); // Refresh silencioso
-        }
+        if (!isUpdatingRef.current) loadData(true);
       });
+
+      // Sincroniza ao voltar para a aba (ex: abriu o celular após fechar o PC)
+      const handleFocus = () => loadData(true);
+      window.addEventListener('focus', handleFocus);
       
-      return () => unsubscribe();
+      return () => {
+        unsubscribe();
+        window.removeEventListener('focus', handleFocus);
+      };
     }
   }, [isAuthenticated]);
 
   const loadData = async (silent = false) => {
+    if (isUpdatingRef.current) return;
+    
     if (silent) setIsRefreshing(true);
     else setLoading(true);
     
-    setSyncError('');
+    setSyncStatus('syncing');
     try {
       const data = await getPatients();
       setPatients(data);
+      setSyncStatus('synced');
       setLastSync(new Date());
-    } catch (err: any) {
-      setSyncError("Erro ao conectar com a nuvem. Usando dados locais.");
+    } catch (err) {
+      setSyncStatus('error');
     } finally {
       setLoading(false);
       setIsRefreshing(false);
     }
   };
 
-  const handleAddPatient = async (newPatient: Patient) => {
+  const handleUpdatePatient = async (updatedPatient: Patient) => {
     isUpdatingRef.current = true;
-    // Update UI first
-    setPatients(prev => [newPatient, ...prev]);
+    // Atualiza UI imediatamente para melhor experiência
+    setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
+    
     try {
-      await savePatient(newPatient);
+      await savePatient(updatedPatient);
+      setSyncStatus('synced');
       setLastSync(new Date());
     } catch (err: any) {
-      setSyncError(err.message);
+      setSyncStatus('error');
+      alert(err.message);
     } finally {
       isUpdatingRef.current = false;
     }
   };
 
-  const handleUpdatePatient = async (updatedPatient: Patient) => {
+  const handleAddPatient = async (newPatient: Patient) => {
     isUpdatingRef.current = true;
-    setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
+    setPatients(prev => [newPatient, ...prev]);
     try {
-      await savePatient(updatedPatient);
+      await savePatient(newPatient);
+      setSyncStatus('synced');
       setLastSync(new Date());
     } catch (err: any) {
-      setSyncError(err.message);
+      setSyncStatus('error');
     } finally {
       isUpdatingRef.current = false;
     }
@@ -124,26 +134,8 @@ const App: React.FC = () => {
       try {
         await deletePatient(id);
         setLastSync(new Date());
-      } catch (err) {
-        console.error(err);
       } finally {
         isUpdatingRef.current = false;
-      }
-    }
-  };
-
-  const handleImportPatients = async (data: Patient[]) => {
-    if (Array.isArray(data)) {
-      setLoading(true);
-      try {
-        for (const p of data) {
-          await savePatient(p);
-        }
-        await loadData();
-      } catch (err) {
-        alert('Erro na importação.');
-      } finally {
-        setLoading(false);
       }
     }
   };
@@ -152,28 +144,34 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center flex-col gap-4">
         <Loader2 className="animate-spin text-blue-600" size={48} />
-        <p className="text-slate-500 font-medium">Conectando ao banco de dados...</p>
+        <p className="text-slate-500 font-medium">Sincronizando prontuários...</p>
       </div>
     );
   }
 
   return (
     <HashRouter>
-      {syncError ? (
-        <div className="bg-amber-50 text-amber-800 border-b border-amber-200 p-2 text-center text-sm flex justify-center items-center gap-2 sticky top-0 z-[100] animate-pulse">
-          <CloudOff size={16} /> 
-          <span>{syncError}</span>
-          <button onClick={() => loadData(true)} className="underline ml-2 font-bold">Tentar novamente</button>
-        </div>
-      ) : lastSync && (
-        <div className="bg-blue-600 text-white p-1 text-[10px] text-center flex justify-center items-center gap-1 sticky top-0 z-[100] opacity-80">
-          <CheckCircle2 size={10} /> Sincronizado: {lastSync.toLocaleTimeString()}
-        </div>
-      )}
-      
+      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none">
+        {syncStatus === 'syncing' && (
+          <div className="bg-blue-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 animate-pulse">
+            <RefreshCw size={10} className="animate-spin" /> Sincronizando com a Nuvem...
+          </div>
+        )}
+        {syncStatus === 'error' && (
+          <div className="bg-red-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto">
+            <CloudOff size={10} /> Erro de Conexão. <button onClick={() => loadData(true)} className="underline ml-2">Tentar agora</button>
+          </div>
+        )}
+        {syncStatus === 'synced' && lastSync && (
+          <div className="bg-green-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 opacity-0 hover:opacity-100 transition-opacity">
+            <CheckCircle2 size={10} /> Última sincronização: {lastSync.toLocaleTimeString()}
+          </div>
+        )}
+      </div>
+
       <Routes>
         <Route path="/login" element={!isAuthenticated ? <LoginScreen onLogin={() => setIsAuthenticated(true)} /> : <Navigate to="/" />} />
-        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={() => setIsAuthenticated(false)} onImport={handleImportPatients} onRefresh={() => loadData(true)} isRefreshing={isRefreshing} /> : <Navigate to="/login" />} />
+        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={() => setIsAuthenticated(false)} onImport={loadData as any} onRefresh={() => loadData(true)} isRefreshing={isRefreshing} /> : <Navigate to="/login" />} />
         <Route path="/register" element={isAuthenticated ? <PatientRegistration onAddPatient={handleAddPatient} /> : <Navigate to="/login" />} />
         <Route path="/patient/:id/*" element={isAuthenticated ? <PatientDashboard patients={patients} updatePatient={handleUpdatePatient} /> : <Navigate to="/login" />} />
       </Routes>

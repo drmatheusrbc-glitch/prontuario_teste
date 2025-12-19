@@ -5,98 +5,73 @@ import { Patient } from '../types';
 const CACHE_KEY = 'recmed_data_cache';
 
 /**
- * Gets data from local storage safely.
+ * Recupera dados do cache local.
  */
 const getLocalData = (): Patient[] => {
   try {
     const data = localStorage.getItem(CACHE_KEY);
     return data ? JSON.parse(data) : [];
   } catch (e) {
-    console.error("Error reading from local storage:", e);
     return [];
   }
 };
 
 /**
- * Saves data to local storage with aggressive compression/thinning if quota is exceeded.
+ * Salva no cache local com limpeza agressiva se necessário.
  */
 const setLocalData = (data: Patient[]) => {
+  // Ordena para garantir que os mais recentes fiquem no topo antes de salvar
   const sorted = [...data].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
   
   try {
     localStorage.setItem(CACHE_KEY, JSON.stringify(sorted));
   } catch (e) {
-    console.warn("Local storage quota exceeded. Applying 'Thin Cache' strategy...");
-    
-    // Strip heavy image data from ALL patients for the local cache
+    console.warn("Storage cheio. Limpando imagens do cache...");
+    // Remove imagens (base64) para salvar espaço no navegador
     const thinData = sorted.map(p => ({
       ...p,
       imaging: (p.imaging || []).map(img => ({ ...img, attachmentData: undefined }))
     }));
-
     try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify(thinData));
-    } catch (innerE) {
-      try {
-        // Extreme thinning: keep only basic info for top 20 patients
-        const ultraThinData = thinData.slice(0, 20).map(p => ({
-          id: p.id,
-          firstName: p.firstName,
-          lastName: p.lastName,
-          bed: p.bed,
-          hospital: p.hospital,
-          lastModified: p.lastModified,
-          admissionDate: p.admissionDate
-        }));
-        localStorage.setItem(CACHE_KEY, JSON.stringify(ultraThinData));
-      } catch (finalE) {
-        localStorage.removeItem(CACHE_KEY);
-      }
+      localStorage.setItem(CACHE_KEY, JSON.stringify(thinData.slice(0, 50)));
+    } catch (err) {
+      localStorage.removeItem(CACHE_KEY);
     }
   }
 };
 
 /**
  * BUSCA PACIENTES (GET)
- * Prioritizes Cloud data and updates local cache.
+ * A nuvem é a verdade absoluta. Se houver conexão, os dados da nuvem 
+ * substituem os locais obrigatoriamente.
  */
 export const getPatients = async (): Promise<Patient[]> => {
   try {
+    // 1. Tenta buscar na nuvem
     const { data: cloudRows, error } = await supabase
       .from('patients')
       .select('data');
     
     if (error) throw error;
     
+    // 2. Transforma dados da nuvem
     const cloudPatients = cloudRows ? cloudRows.map((row: any) => row.data) as Patient[] : [];
+    
+    // 3. Pega dados locais para conferir se há algum paciente NOVO criado offline
     const localPatients = getLocalData();
     
-    // Merge Logic: Cloud is the primary truth.
+    // 4. Lógica de Mesclagem Segura:
+    // Começamos com os dados da nuvem como base (Verdade Absoluta)
     const finalMap = new Map<string, Patient>();
-
-    // 1. Load cloud data
     cloudPatients.forEach(p => {
       if (p && p.id) finalMap.set(p.id, p);
     });
 
-    // 2. Check for local changes not yet in cloud
+    // 5. Adicionamos apenas pacientes locais que NÃO existem na nuvem 
+    // (Ex: paciente cadastrado no celular enquanto estava sem sinal)
     localPatients.forEach(lp => {
-      if (!lp || !lp.id) return;
-      const cp = finalMap.get(lp.id);
-      if (!cp || (lp.lastModified || 0) > (cp.lastModified || 0)) {
+      if (lp && lp.id && !finalMap.has(lp.id)) {
         finalMap.set(lp.id, lp);
-        
-        // Background sync: Supabase builders don't have .catch() directly. 
-        // We use .then() with both callbacks or wrap in Promise.resolve().
-        supabase
-          .from('patients')
-          .upsert({ id: lp.id, data: lp })
-          .then(
-            ({ error: syncError }) => {
-              if (syncError) console.error(`Background sync failed for ${lp.id}:`, syncError);
-            },
-            (err) => console.error(`Background sync exception for ${lp.id}:`, err)
-          );
       }
     });
 
@@ -104,41 +79,46 @@ export const getPatients = async (): Promise<Patient[]> => {
       .filter(p => p && p.id && p.firstName)
       .sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
 
+    // 6. Atualiza o cache local com a nova verdade
     setLocalData(finalPatients);
+    
     return finalPatients;
   } catch (err: any) {
-    console.error('Cloud fetch failed. Operating in Offline Mode.', err);
+    console.error('Sem conexão com a nuvem. Usando cache local.', err);
+    // Se a nuvem falhar, usamos o que temos guardado no aparelho
     return getLocalData();
   }
 };
 
 /**
  * SALVA PACIENTE (POST/PUT)
+ * Salva localmente primeiro (UX rápida) e depois empurra para a nuvem.
  */
 export const savePatient = async (patient: Patient) => {
+  // Criamos um novo timestamp de modificação
   const now = Date.now();
   const updatedPatient = { ...patient, lastModified: now };
 
-  // 1. Update local cache immediately (Optimistic UI)
+  // 1. Atualiza cache local imediatamente
   const currentLocal = getLocalData();
   const filtered = currentLocal.filter(p => p.id !== patient.id);
   setLocalData([updatedPatient, ...filtered]);
 
-  // 2. Persist to Cloud
+  // 2. Persiste na Nuvem
   try {
-    const { data: existing, error: fetchError } = await supabase
+    // Recupera dados existentes para não apagar imagens que podem estar só na nuvem
+    const { data: existing } = await supabase
       .from('patients')
       .select('data')
       .eq('id', patient.id)
       .maybeSingle();
 
-    if (fetchError) console.warn("Could not fetch existing patient for merge", fetchError);
-
     let dataToUpload = { ...updatedPatient };
 
     if (existing?.data) {
       const cloudData = existing.data as Patient;
-      // Rehydrate image data from cloud if local copy is thinned (null/undefined attachmentData)
+      // Se o objeto local não tem os bytes da imagem (cache thinned), 
+      // recuperamos da nuvem para o upload ser completo.
       dataToUpload.imaging = (updatedPatient.imaging || []).map(localImg => {
         if (!localImg.attachmentData) {
           const cloudImg = cloudData.imaging?.find(ci => ci.id === localImg.id);
@@ -157,9 +137,10 @@ export const savePatient = async (patient: Patient) => {
       }, { onConflict: 'id' });
 
     if (error) throw error;
+    console.log("Sincronizado com a nuvem!");
   } catch (err: any) {
-    console.error("Cloud sync failed:", err);
-    throw new Error("Alteração salva apenas localmente. Verifique sua conexão.");
+    console.error("Falha ao salvar na nuvem:", err);
+    throw new Error("Salvo apenas neste dispositivo. Conecte-se à internet para sincronizar.");
   }
 };
 
@@ -168,18 +149,18 @@ export const deletePatient = async (id: string) => {
   setLocalData(current.filter(p => p.id !== id));
   
   try {
-    const { error } = await supabase.from('patients').delete().eq('id', id);
-    if (error) throw error;
+    await supabase.from('patients').delete().eq('id', id);
   } catch (err) {
-    console.error("Error deleting from cloud:", err);
+    console.error("Erro ao excluir na nuvem:", err);
   }
 };
 
 export const subscribeToChanges = (callback: () => void) => {
   const channel = supabase
-    .channel('db-changes-all')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => {
-      callback();
+    .channel('db-changes-v2')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, (payload) => {
+      // Pequeno delay para garantir que o banco processou o commit
+      setTimeout(() => callback(), 500);
     })
     .subscribe();
 

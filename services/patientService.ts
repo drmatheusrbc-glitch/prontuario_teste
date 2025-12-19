@@ -19,18 +19,16 @@ const getLocalData = (): Patient[] => {
 
 /**
  * Saves data to local storage with aggressive compression/thinning if quota is exceeded.
- * Medical images (base64) are the primary cause of quota issues.
  */
 const setLocalData = (data: Patient[]) => {
   const sorted = [...data].sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
   
   try {
-    // Attempt 1: Store everything
     localStorage.setItem(CACHE_KEY, JSON.stringify(sorted));
   } catch (e) {
     console.warn("Local storage quota exceeded. Applying 'Thin Cache' strategy...");
     
-    // Attempt 2: Strip ALL heavy image data from the cache (Cloud remains the source of truth for images)
+    // Strip heavy image data from ALL patients for the local cache
     const thinData = sorted.map(p => ({
       ...p,
       imaging: (p.imaging || []).map(img => ({ ...img, attachmentData: undefined }))
@@ -39,11 +37,19 @@ const setLocalData = (data: Patient[]) => {
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify(thinData));
     } catch (innerE) {
-      // Attempt 3: If still failing, store only the 30 most recent patients without images
       try {
-        localStorage.setItem(CACHE_KEY, JSON.stringify(thinData.slice(0, 30)));
+        // Extreme thinning: keep only basic info for top 20 patients
+        const ultraThinData = thinData.slice(0, 20).map(p => ({
+          id: p.id,
+          firstName: p.firstName,
+          lastName: p.lastName,
+          bed: p.bed,
+          hospital: p.hospital,
+          lastModified: p.lastModified,
+          admissionDate: p.admissionDate
+        }));
+        localStorage.setItem(CACHE_KEY, JSON.stringify(ultraThinData));
       } catch (finalE) {
-        // Last resort: Clear it. Sync will recover from Cloud on next load.
         localStorage.removeItem(CACHE_KEY);
       }
     }
@@ -56,7 +62,6 @@ const setLocalData = (data: Patient[]) => {
  */
 export const getPatients = async (): Promise<Patient[]> => {
   try {
-    console.log("Fetching fresh data from cloud...");
     const { data: cloudRows, error } = await supabase
       .from('patients')
       .select('data');
@@ -66,28 +71,32 @@ export const getPatients = async (): Promise<Patient[]> => {
     const cloudPatients = cloudRows ? cloudRows.map((row: any) => row.data) as Patient[] : [];
     const localPatients = getLocalData();
     
-    // If cloud is empty but local has data, push local to cloud (initial sync or migration)
-    if (cloudPatients.length === 0 && localPatients.length > 0) {
-      for (const p of localPatients) {
-        await supabase.from('patients').upsert({ id: p.id, data: p });
-      }
-      return localPatients;
-    }
-
     // Merge Logic: Cloud is the primary truth.
-    // Local data is only preferred if its lastModified timestamp is strictly GREATER than the cloud version.
     const finalMap = new Map<string, Patient>();
 
     // 1. Load cloud data
-    cloudPatients.forEach(p => finalMap.set(p.id, p));
+    cloudPatients.forEach(p => {
+      if (p && p.id) finalMap.set(p.id, p);
+    });
 
     // 2. Check for local changes not yet in cloud
     localPatients.forEach(lp => {
+      if (!lp || !lp.id) return;
       const cp = finalMap.get(lp.id);
       if (!cp || (lp.lastModified || 0) > (cp.lastModified || 0)) {
         finalMap.set(lp.id, lp);
-        // Sync local-only or newer-local changes to cloud in background
-        supabase.from('patients').upsert({ id: lp.id, data: lp }).catch(err => console.error("Background sync failed", err));
+        
+        // Background sync: Supabase builders don't have .catch() directly. 
+        // We use .then() with both callbacks or wrap in Promise.resolve().
+        supabase
+          .from('patients')
+          .upsert({ id: lp.id, data: lp })
+          .then(
+            ({ error: syncError }) => {
+              if (syncError) console.error(`Background sync failed for ${lp.id}:`, syncError);
+            },
+            (err) => console.error(`Background sync exception for ${lp.id}:`, err)
+          );
       }
     });
 
@@ -105,7 +114,6 @@ export const getPatients = async (): Promise<Patient[]> => {
 
 /**
  * SALVA PACIENTE (POST/PUT)
- * Ensures data is saved locally first, then attempts cloud sync with image preservation.
  */
 export const savePatient = async (patient: Patient) => {
   const now = Date.now();
@@ -118,19 +126,19 @@ export const savePatient = async (patient: Patient) => {
 
   // 2. Persist to Cloud
   try {
-    // Critical: If the local object has 'undefined' image data (due to cache thinning),
-    // we MUST merge with existing cloud data to avoid deleting images on the server.
-    const { data: existing } = await supabase
+    const { data: existing, error: fetchError } = await supabase
       .from('patients')
       .select('data')
       .eq('id', patient.id)
       .maybeSingle();
 
+    if (fetchError) console.warn("Could not fetch existing patient for merge", fetchError);
+
     let dataToUpload = { ...updatedPatient };
 
     if (existing?.data) {
       const cloudData = existing.data as Patient;
-      // Rehydrate image data from cloud if local copy is thinned
+      // Rehydrate image data from cloud if local copy is thinned (null/undefined attachmentData)
       dataToUpload.imaging = (updatedPatient.imaging || []).map(localImg => {
         if (!localImg.attachmentData) {
           const cloudImg = cloudData.imaging?.find(ci => ci.id === localImg.id);
@@ -149,19 +157,16 @@ export const savePatient = async (patient: Patient) => {
       }, { onConflict: 'id' });
 
     if (error) throw error;
-    console.log("Cloud sync successful for patient:", patient.id);
   } catch (err: any) {
-    console.error("Cloud sync failed. Data is only saved on this device.", err);
+    console.error("Cloud sync failed:", err);
     throw new Error("Alteração salva apenas localmente. Verifique sua conexão.");
   }
 };
 
 export const deletePatient = async (id: string) => {
-  // Update local
   const current = getLocalData();
   setLocalData(current.filter(p => p.id !== id));
   
-  // Update cloud
   try {
     const { error } = await supabase.from('patients').delete().eq('id', id);
     if (error) throw error;
@@ -170,14 +175,10 @@ export const deletePatient = async (id: string) => {
   }
 };
 
-/**
- * Real-time subscription to cloud changes.
- */
 export const subscribeToChanges = (callback: () => void) => {
   const channel = supabase
-    .channel('db-changes')
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, (payload) => {
-      console.log('Real-time update received from cloud!');
+    .channel('db-changes-all')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'patients' }, () => {
       callback();
     })
     .subscribe();

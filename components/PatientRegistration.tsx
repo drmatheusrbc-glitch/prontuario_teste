@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Patient, Sexo } from '../types';
 import { Card, Input, Select, Button } from './UiComponents';
 import { calculateBMI, calculateAge } from '../services/utils';
-import { UserPlus, Users, Activity, LogOut, Trash2, Database, Download, Upload, X, Cloud, CloudLightning, Bed, HeartPulse } from 'lucide-react';
+import { UserPlus, Users, Activity, LogOut, Trash2, Database, Download, Upload, X, Cloud, CloudLightning, Bed, HeartPulse, RefreshCw } from 'lucide-react';
 
 interface RegistrationProps {
   onAddPatient: (p: Patient) => void;
@@ -43,9 +43,9 @@ export const PatientRegistration: React.FC<RegistrationProps> = ({ onAddPatient 
     const newPatient: Patient = {
       ...form as any,
       id: Date.now().toString(),
+      lastModified: Date.now(),
       age: form.birthDate ? calculateAge(form.birthDate) : 0,
       bmi: calculateBMI(Number(form.weight), Number(form.height)),
-      // Defaults
       hpp: '', continuousMeds: '', habits: '', hda: '', allergies: '',
       diagnostics: [], evolutions: [], vitalSigns: [], labResults: [], prescriptions: [], imaging: [], alerts: [], cultures: []
     };
@@ -115,16 +115,17 @@ interface PatientListProps {
   onDelete: (id: string) => void;
   onLogout: () => void;
   onImport: (data: Patient[]) => void;
+  onRefresh: () => void;
+  isRefreshing: boolean;
 }
 
-export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, onLogout, onImport }) => {
+export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, onLogout, onImport, onRefresh, isRefreshing }) => {
   const navigate = useNavigate();
   const [showDataModal, setShowDataModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'enfermaria' | 'uti'>('enfermaria');
 
   const handleDeleteClick = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    // Let parent handle confirmation
     onDelete(id);
   };
 
@@ -132,7 +133,6 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
     const dataStr = JSON.stringify(patients, null, 2);
     const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
     const exportFileDefaultName = `recmed_backup_${new Date().toISOString().slice(0,10)}.json`;
-    
     const linkElement = document.createElement('a');
     linkElement.setAttribute('href', dataUri);
     linkElement.setAttribute('download', exportFileDefaultName);
@@ -173,7 +173,7 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
                
                <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 mb-6 text-sm text-blue-800">
                  <p className="font-bold mb-1 flex items-center gap-2"><Cloud size={14}/> Nuvem Ativada</p>
-                 <p>Seus dados são salvos automaticamente. Use esta tela para baixar uma cópia de segurança ou importar dados antigos.</p>
+                 <p>Os dados são sincronizados automaticamente. Use esta tela para baixar cópias de segurança.</p>
                </div>
 
                <div className="space-y-4">
@@ -185,14 +185,13 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
                  </div>
 
                  <div className="relative pt-4 border-t border-slate-100">
-                   <label className="block text-sm font-medium text-slate-700 mb-1">Importar para Nuvem</label>
+                   <label className="block text-sm font-medium text-slate-700 mb-1">Importar Backup Externo</label>
                    <div className="relative">
                      <Button variant="outline" className="w-full flex items-center justify-center gap-2 py-3" onClick={() => document.getElementById('file-upload')?.click()}>
-                       <Upload size={18} /> Restaurar Backup
+                       <Upload size={18} /> Restaurar Arquivo
                      </Button>
                      <input id="file-upload" type="file" accept=".json" onChange={handleImport} className="absolute inset-0 opacity-0 cursor-pointer w-full h-full" />
                    </div>
-                   <p className="text-xs text-slate-500 mt-1 text-center">Os dados importados serão adicionados ao banco na nuvem.</p>
                  </div>
                </div>
             </div>
@@ -200,20 +199,24 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
        )}
 
        <header className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-30">
-         <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-0">
-           <div className="flex items-center gap-2">
+         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+           <div className="flex items-center gap-3">
              <h1 className="text-2xl font-bold text-blue-600 flex items-center gap-2">
                <Activity /> RecMed
              </h1>
-             <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-50 text-green-600 text-[10px] font-medium border border-green-200" title="Conectado à Nuvem">
-                <CloudLightning size={10} /> Nuvem
-             </span>
+             <button 
+                onClick={onRefresh} 
+                className={`p-2 rounded-full hover:bg-slate-100 transition-all ${isRefreshing ? 'animate-spin text-blue-500' : 'text-slate-400'}`}
+                title="Sincronizar com a Nuvem"
+             >
+                <RefreshCw size={20} />
+             </button>
            </div>
-           <div className="flex gap-2 w-full md:w-auto justify-end">
-             <Button onClick={() => setShowDataModal(true)} variant="outline" className="text-sm flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50">
-               <Database size={16} /> <span className="inline">Backup</span>
+           <div className="flex gap-2">
+             <Button onClick={() => setShowDataModal(true)} variant="outline" className="text-sm flex items-center gap-2 text-slate-600 border-slate-200">
+               <Database size={16} /> <span className="hidden sm:inline">Backup</span>
              </Button>
-             <Button onClick={onLogout} variant="outline" className="text-sm flex items-center gap-2 text-red-600 hover:bg-red-50 border-red-200">
+             <Button onClick={onLogout} variant="outline" className="text-sm flex items-center gap-2 text-red-600 border-red-200">
                <LogOut size={16} /> <span className="hidden sm:inline">Sair</span>
              </Button>
            </div>
@@ -221,7 +224,6 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
        </header>
 
        <main className="max-w-7xl mx-auto px-4 py-8">
-         {/* Tabs Navigation */}
          <div className="flex justify-center mb-8">
             <div className="bg-slate-200 p-1 rounded-xl flex gap-1 shadow-inner">
                <button 
@@ -239,11 +241,10 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
             </div>
          </div>
 
-         {/* Enfermaria Content */}
          {activeTab === 'enfermaria' && (
            <div className="animate-fade-in">
              <div className="flex justify-between items-center mb-6">
-               <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2"><Users /> Pacientes na Enfermaria</h2>
+               <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-2"><Users /> Pacientes</h2>
                <Button onClick={() => navigate('/register')}><UserPlus size={18} className="mr-2 inline" /> Novo Paciente</Button>
              </div>
 
@@ -262,12 +263,11 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
                     <div className="mt-4 pt-4 border-t border-slate-100 text-sm text-slate-600 space-y-1">
                        <p><strong>Hospital:</strong> {p.hospital}</p>
                        <p><strong>Admissão:</strong> {new Date(p.admissionDate).toLocaleDateString('pt-BR')}</p>
-                       <p><strong>Diagnósticos:</strong> {p.diagnostics.length > 0 ? p.diagnostics[0].name + (p.diagnostics.length > 1 ? '...' : '') : '-'}</p>
                     </div>
                     
                     <button 
                       onClick={(e) => handleDeleteClick(e, p.id)}
-                      className="absolute top-4 right-4 p-2 bg-white rounded-full text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors shadow-sm border border-transparent hover:border-red-100 opacity-0 group-hover:opacity-100"
+                      className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all"
                       title="Excluir paciente"
                     >
                       <Trash2 size={16} />
@@ -276,10 +276,7 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
                ))}
                {patients.length === 0 && (
                  <div className="col-span-full text-center py-12 bg-white rounded-lg border border-dashed border-slate-300">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-slate-100 text-slate-400 mb-4">
-                       <Bed size={32} />
-                    </div>
-                    <p className="text-slate-500 mb-4">Nenhum paciente cadastrado na enfermaria.</p>
+                    <p className="text-slate-500 mb-4">Nenhum paciente cadastrado.</p>
                     <Button variant="outline" onClick={() => navigate('/register')}>Cadastrar Primeiro Paciente</Button>
                  </div>
                )}
@@ -287,14 +284,10 @@ export const PatientList: React.FC<PatientListProps> = ({ patients, onDelete, on
            </div>
          )}
 
-         {/* UTI Content */}
          {activeTab === 'uti' && (
-            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-dashed border-slate-300 text-center animate-fade-in">
-               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-blue-50 text-blue-500 mb-6">
-                  <Activity size={40} />
-               </div>
+            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-xl border border-dashed border-slate-300 text-center">
                <h3 className="text-2xl font-bold text-slate-800 mb-2">Módulo UTI</h3>
-               <p className="text-slate-500 max-w-md mx-auto">Esta área está sendo preparada. Em breve você poderá gerenciar leitos de terapia intensiva, scores (SOFA/APACHE) e dispositivos invasivos.</p>
+               <p className="text-slate-500">Em desenvolvimento...</p>
             </div>
          )}
        </main>

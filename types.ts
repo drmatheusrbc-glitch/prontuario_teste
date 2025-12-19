@@ -16,9 +16,9 @@ export interface VitalSign {
 }
 
 export interface LabResult {
-  id?: string; // Added ID for management
-  date: string; // ISO string
-  values: Record<string, number>; // key is exam name (e.g., 'hemoglobina'), value is result
+  id?: string; 
+  date: string; 
+  values: Record<string, number>; 
 }
 
 export interface Medication {
@@ -28,7 +28,7 @@ export interface Medication {
   dose: string;
   frequency: string;
   startDate: string;
-  endDate?: string; // Empty or "Uso contínuo" logic handled in UI
+  endDate?: string;
   isContinuous: boolean;
   status?: 'active' | 'ended' | 'suspended';
 }
@@ -50,10 +50,10 @@ export interface ImagingExam {
 
 export interface Culture {
   id: string;
-  type: string; // e.g., Hemocultura, Urocultura, Ponta de Cateter
+  type: string;
   requestDate: string;
   resultDate?: string;
-  result?: string; // Description of bacteria/antibiogram or "Negative"
+  result?: string;
   status: 'pending' | 'completed';
 }
 
@@ -72,6 +72,7 @@ export interface Diagnosis {
 
 export interface Patient {
   id: string;
+  lastModified?: number; // Timestamp para controle de versão
   // Registration Info
   firstName: string;
   lastName: string;
@@ -92,10 +93,10 @@ export interface Patient {
   bmi: number;
 
   // Anamnesis
-  hpp: string; // História Patológica Pregressa
-  continuousMeds: string; // Medicações de uso prévio
-  habits: string; // Hábitos de Vida
-  hda: string; // História da Doença Atual
+  hpp: string; 
+  continuousMeds: string; 
+  habits: string; 
+  hda: string; 
   allergies: string;
 
   // Diagnostics
@@ -127,7 +128,7 @@ export const LAB_FIELDS = [
   { key: 'ttpa', label: 'TTPA', unit: 'seg' },
   { key: 'ureia', label: 'Ureia', unit: 'mg/dL' },
   { key: 'creatinina', label: 'Creatinina', unit: 'mg/dL' },
-  { key: 'tfg', label: 'TFG (CKD-EPI)', unit: 'ml/min/1.73m²' }, // Calc
+  { key: 'tfg', label: 'TFG (CKD-EPI)', unit: 'ml/min/1.73m²' }, 
   { key: 'sodio', label: 'Sódio', unit: 'mEq/L' },
   { key: 'potassio', label: 'Potássio', unit: 'mEq/L' },
   { key: 'calcio', label: 'Cálcio', unit: 'mg/dL' },

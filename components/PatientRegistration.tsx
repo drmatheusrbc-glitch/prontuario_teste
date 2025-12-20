@@ -43,6 +43,7 @@ export const PatientRegistration: React.FC<RegistrationProps> = ({ onAddPatient 
     const newPatient: Patient = {
       ...form as any,
       id: Date.now().toString(),
+      version: 1, // IMPORTANTE: Inicializa a versão para o Supabase aceitar
       lastModified: Date.now(),
       age: form.birthDate ? calculateAge(form.birthDate) : 0,
       bmi: calculateBMI(Number(form.weight), Number(form.height)),

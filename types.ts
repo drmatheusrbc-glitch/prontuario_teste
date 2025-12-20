@@ -5,14 +5,14 @@ export enum Sexo {
 }
 
 export interface VitalSign {
-  date: string; // ISO string
+  date: string;
   fc: string;
   fr: string;
   pas: string;
   pad: string;
   sato2: string;
   dextro: string;
-  tax: string; // Temperatura Axilar
+  tax: string;
 }
 
 export interface LabResult {
@@ -44,8 +44,8 @@ export interface ImagingExam {
   date: string;
   description: string;
   attachmentName?: string;
-  attachmentData?: string; // Base64 string
-  attachmentType?: string; // MIME type
+  attachmentData?: string;
+  attachmentType?: string;
 }
 
 export interface Culture {
@@ -72,8 +72,9 @@ export interface Diagnosis {
 
 export interface Patient {
   id: string;
-  lastModified?: number; // Timestamp para controle de versão
-  // Registration Info
+  version: number; // Controle de concorrência
+  lastModified?: number;
+  
   firstName: string;
   lastName: string;
   hospital: string;
@@ -92,17 +93,13 @@ export interface Patient {
   height: number;
   bmi: number;
 
-  // Anamnesis
   hpp: string; 
   continuousMeds: string; 
   habits: string; 
   hda: string; 
   allergies: string;
 
-  // Diagnostics
   diagnostics: Diagnosis[];
-
-  // Clinical Data
   evolutions: Evolution[];
   vitalSigns: VitalSign[];
   labResults: LabResult[];

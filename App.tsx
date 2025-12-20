@@ -5,7 +5,7 @@ import { Patient } from './types';
 import { PatientRegistration, PatientList } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
 import { Card, Input, Button } from './components/UiComponents';
-import { Activity, Loader2, CloudOff, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Activity, Loader2, CloudOff, CheckCircle2, RefreshCw, AlertCircle } from 'lucide-react';
 import { getPatients, savePatient, deletePatient, subscribeToChanges } from './services/patientService';
 
 const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
@@ -50,7 +50,7 @@ const App: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'error' | 'syncing'>('synced');
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'error' | 'syncing' | 'conflict'>('synced');
   const [lastSync, setLastSync] = useState<Date | null>(null);
   
   const isUpdatingRef = useRef(false);
@@ -60,14 +60,10 @@ const App: React.FC = () => {
     if (isAuthenticated) {
       loadData();
       
-      // Subscribe to real-time database changes
       const unsubscribe = subscribeToChanges(() => {
-        if (!isUpdatingRef.current) {
-          loadData(true);
-        }
+        if (!isUpdatingRef.current) loadData(true);
       });
 
-      // Re-sync when the browser window/tab regains focus
       const handleFocus = () => loadData(true);
       window.addEventListener('focus', handleFocus);
       
@@ -79,7 +75,7 @@ const App: React.FC = () => {
   }, [isAuthenticated]);
 
   const loadData = async (silent = false) => {
-    if (isUpdatingRef.current) return;
+    if (isUpdatingRef.current && silent) return;
     
     if (silent) setIsRefreshing(true);
     else setLoading(true);
@@ -100,16 +96,22 @@ const App: React.FC = () => {
 
   const handleUpdatePatient = async (updatedPatient: Patient) => {
     isUpdatingRef.current = true;
-    // UI Update (Optimistic)
-    setPatients(prev => prev.map(p => p.id === updatedPatient.id ? updatedPatient : p));
+    setSyncStatus('syncing');
     
     try {
-      await savePatient(updatedPatient);
+      const saved = await savePatient(updatedPatient);
+      setPatients(prev => prev.map(p => p.id === saved.id ? saved : p));
       setSyncStatus('synced');
       setLastSync(new Date());
     } catch (err: any) {
-      setSyncStatus('error');
-      // If saving fails, we should ideally reload data to revert UI or inform user
+      if (err.message.includes('CONFLITO')) {
+        setSyncStatus('conflict');
+        alert(err.message);
+        loadData(true);
+      } else {
+        setSyncStatus('error');
+        alert("ERRO AO SALVAR NA NUVEM: " + err.message);
+      }
       console.error(err);
     } finally {
       isUpdatingRef.current = false;
@@ -118,13 +120,15 @@ const App: React.FC = () => {
 
   const handleAddPatient = async (newPatient: Patient) => {
     isUpdatingRef.current = true;
-    setPatients(prev => [newPatient, ...prev]);
+    setSyncStatus('syncing');
     try {
-      await savePatient(newPatient);
+      const saved = await savePatient(newPatient);
+      setPatients(prev => [saved, ...prev]);
       setSyncStatus('synced');
       setLastSync(new Date());
     } catch (err: any) {
       setSyncStatus('error');
+      alert("ERRO AO CRIAR PACIENTE: " + err.message);
     } finally {
       isUpdatingRef.current = false;
     }
@@ -133,12 +137,14 @@ const App: React.FC = () => {
   const handleDeletePatient = async (id: string) => {
     if(window.confirm('Excluir paciente permanentemente?')) {
       isUpdatingRef.current = true;
-      setPatients(prev => prev.filter(p => p.id !== id));
       try {
         await deletePatient(id);
+        setPatients(prev => prev.filter(p => p.id !== id));
         setLastSync(new Date());
+        setSyncStatus('synced');
       } catch (err) {
         setSyncStatus('error');
+        alert("Erro ao excluir na nuvem.");
       } finally {
         isUpdatingRef.current = false;
       }
@@ -149,35 +155,39 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center flex-col gap-4">
         <Loader2 className="animate-spin text-blue-600" size={48} />
-        <p className="text-slate-500 font-medium">Sincronizando banco de dados...</p>
+        <p className="text-slate-500 font-medium">Conectando ao banco de dados...</p>
       </div>
     );
   }
 
   return (
     <HashRouter>
-      {/* Synchronization Indicator Bar */}
-      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none transition-all duration-500">
+      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none">
         {syncStatus === 'syncing' && (
           <div className="bg-blue-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 shadow-md">
-            <RefreshCw size={10} className="animate-spin" /> Atualizando...
+            <RefreshCw size={10} className="animate-spin" /> Sincronizando...
+          </div>
+        )}
+        {syncStatus === 'conflict' && (
+          <div className="bg-orange-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 shadow-md animate-pulse">
+            <AlertCircle size={10} /> Conflito detectado!
           </div>
         )}
         {syncStatus === 'error' && (
           <div className="bg-red-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto shadow-md">
-            <CloudOff size={10} /> Conexão Offline. <button onClick={() => loadData(true)} className="underline ml-2 font-bold">Reconectar</button>
+            <CloudOff size={10} /> Erro de Conexão. <button onClick={() => loadData(true)} className="underline ml-2 font-bold">Tentar Novamente</button>
           </div>
         )}
         {syncStatus === 'synced' && lastSync && (
           <div className="bg-green-600/90 text-white text-[10px] py-0.5 px-4 flex justify-center items-center gap-2 opacity-0 hover:opacity-100 transition-opacity">
-            <CheckCircle2 size={10} /> Última sincronização: {lastSync.toLocaleTimeString()}
+            <CheckCircle2 size={10} /> Sincronizado: {lastSync.toLocaleTimeString()}
           </div>
         )}
       </div>
 
       <Routes>
         <Route path="/login" element={!isAuthenticated ? <LoginScreen onLogin={() => setIsAuthenticated(true)} /> : <Navigate to="/" />} />
-        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={() => setIsAuthenticated(false)} onImport={() => loadData(true)} onRefresh={() => loadData(true)} isRefreshing={isRefreshing} /> : <Navigate to="/login" />} />
+        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={() => setIsAuthenticated(false)} onImport={(data) => { setPatients(data); loadData(true); }} onRefresh={() => loadData(true)} isRefreshing={isRefreshing} /> : <Navigate to="/login" />} />
         <Route path="/register" element={isAuthenticated ? <PatientRegistration onAddPatient={handleAddPatient} /> : <Navigate to="/login" />} />
         <Route path="/patient/:id/*" element={isAuthenticated ? <PatientDashboard patients={patients} updatePatient={handleUpdatePatient} /> : <Navigate to="/login" />} />
       </Routes>

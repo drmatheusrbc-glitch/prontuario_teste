@@ -14,7 +14,6 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Senha única de acesso: 150199
     if (password.trim() === '150199') {
       onLogin();
     } else {
@@ -52,24 +51,16 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
                 />
               </div>
             </div>
-            {error && (
-              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2 animate-shake">
-                <AlertCircle size={16} /> {error}
-              </div>
-            )}
+            {error && <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2"><AlertCircle size={16} /> {error}</div>}
             <Button className="w-full py-3 text-lg font-bold" type="submit">Entrar no Sistema</Button>
           </form>
         </Card>
-        <p className="text-center mt-8 text-slate-400 text-xs">
-          Acesso Restrito a Profissionais Autorizados
-        </p>
       </div>
     </div>
   );
 };
 
 const App: React.FC = () => {
-  // Usando sessionStorage para que o login expire ao fechar a aba/janela
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => sessionStorage.getItem('recmed_auth') === 'true');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
@@ -85,15 +76,15 @@ const App: React.FC = () => {
       loadData();
       
       const unsubscribe = subscribeToChanges(() => {
-        if (!isUpdatingRef.current) loadData(true);
+        // Apenas recarrega se não estivermos salvando algo no momento
+        if (!isUpdatingRef.current) {
+          loadData(true);
+        }
       });
 
-      const handleFocus = () => loadData(true);
-      window.addEventListener('focus', handleFocus);
-      
+      // Removido o evento de focus que causava atualizações excessivas
       return () => {
         unsubscribe();
-        window.removeEventListener('focus', handleFocus);
       };
     }
   }, [isAuthenticated]);
@@ -154,11 +145,7 @@ const App: React.FC = () => {
       setSyncStatus('synced');
       setLastSync(new Date());
     } catch (err: any) {
-      if (err.message.includes('Permissão')) {
-        setSyncStatus('permission_error');
-      } else {
-        setSyncStatus('error');
-      }
+      setSyncStatus(err.message.includes('Permissão') ? 'permission_error' : 'error');
       alert("ERRO AO CRIAR PACIENTE: " + err.message);
     } finally {
       isUpdatingRef.current = false;
@@ -171,11 +158,9 @@ const App: React.FC = () => {
       try {
         await deletePatient(id);
         setPatients(prev => prev.filter(p => p.id !== id));
-        setLastSync(new Date());
         setSyncStatus('synced');
       } catch (err) {
         setSyncStatus('error');
-        alert("Erro ao excluir na nuvem.");
       } finally {
         isUpdatingRef.current = false;
       }
@@ -199,11 +184,6 @@ const App: React.FC = () => {
             <RefreshCw size={10} className="animate-spin" /> Sincronizando...
           </div>
         )}
-        {syncStatus === 'conflict' && (
-          <div className="bg-orange-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 shadow-md animate-pulse">
-            <AlertCircle size={10} /> Conflito detectado!
-          </div>
-        )}
         {syncStatus === 'permission_error' && (
           <div className="bg-purple-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto shadow-md">
             <ShieldAlert size={10} /> Erro de Permissão (RLS). Execute as políticas no Supabase.
@@ -211,12 +191,7 @@ const App: React.FC = () => {
         )}
         {syncStatus === 'error' && (
           <div className="bg-red-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto shadow-md">
-            <CloudOff size={10} /> Erro de Conexão. <button onClick={() => loadData(true)} className="underline ml-2 font-bold font-sans">Tentar Novamente</button>
-          </div>
-        )}
-        {syncStatus === 'synced' && lastSync && (
-          <div className="bg-green-600/90 text-white text-[10px] py-0.5 px-4 flex justify-center items-center gap-2 opacity-0 hover:opacity-100 transition-opacity">
-            <CheckCircle2 size={10} /> Sincronizado: {lastSync.toLocaleTimeString()}
+            <CloudOff size={10} /> Erro de Conexão. <button onClick={() => loadData(true)} className="underline ml-2 font-bold">Tentar Novamente</button>
           </div>
         )}
       </div>

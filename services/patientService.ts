@@ -45,7 +45,7 @@ export const getPatients = async (): Promise<Patient[]> => {
 
 export const savePatient = async (patient: Patient) => {
   try {
-    // Tenta buscar a versão atual na nuvem
+    // 1. Tenta buscar a versão atual na nuvem
     const { data: existing, error: fetchError } = await supabase
       .from('patients')
       .select('data')
@@ -53,16 +53,17 @@ export const savePatient = async (patient: Patient) => {
       .maybeSingle();
 
     if (fetchError) {
-      console.warn("Aviso: Falha ao conferir versão na nuvem. Tentando salvar mesmo assim.");
+      console.warn("Aviso: Falha ao conferir versão na nuvem:", fetchError);
     }
 
     const cloudData = existing?.data as Patient | undefined;
     
-    // Detecção de conflito (apenas se conseguimos ler a nuvem)
+    // 2. Detecção de conflito
     if (cloudData && cloudData.version > (patient.version || 0)) {
-      throw new Error("CONFLITO: Este paciente foi alterado em outro dispositivo. Atualize a página.");
+      throw new Error("CONFLITO: Este paciente foi alterado em outro dispositivo. Por favor, atualize a lista antes de salvar.");
     }
 
+    // 3. Prepara objeto para salvar
     const nextVersion = (patient.version || 0) + 1;
     const now = Date.now();
     const patientToSave = { 
@@ -71,28 +72,27 @@ export const savePatient = async (patient: Patient) => {
       lastModified: now 
     };
 
-    // Upsert na nuvem
+    // 4. UPSERT na nuvem (Removida a coluna last_modified_at que causava erro)
     const { error: upsertError } = await supabase
       .from('patients')
       .upsert({ 
         id: patient.id, 
-        data: patientToSave,
-        last_modified_at: new Date().toISOString() 
+        data: patientToSave
       }, { onConflict: 'id' });
 
     if (upsertError) {
-      console.error("Erro Supabase (upsert):", upsertError);
-      throw new Error(`Falha ao salvar na nuvem: ${upsertError.message}. Verifique se a tabela 'patients' existe no SQL Editor.`);
+      console.error("Erro detalhado Supabase:", upsertError);
+      throw new Error(upsertError.message || "Erro desconhecido no banco de dados.");
     }
 
-    // Atualiza local apenas após sucesso na nuvem
+    // 5. Atualiza local após sucesso
     const currentLocal = getLocalData();
     const updatedLocal = [patientToSave, ...currentLocal.filter(p => p.id !== patient.id)];
     setLocalData(updatedLocal);
 
     return patientToSave;
   } catch (err: any) {
-    console.error("Erro detalhado no salvamento:", err);
+    console.error("Erro no savePatient:", err);
     throw err;
   }
 };

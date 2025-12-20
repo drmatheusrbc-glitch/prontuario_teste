@@ -72,7 +72,7 @@ export const savePatient = async (patient: Patient) => {
       lastModified: now 
     };
 
-    // 4. UPSERT na nuvem (Removida a coluna last_modified_at que causava erro)
+    // 4. UPSERT na nuvem
     const { error: upsertError } = await supabase
       .from('patients')
       .upsert({ 
@@ -82,6 +82,10 @@ export const savePatient = async (patient: Patient) => {
 
     if (upsertError) {
       console.error("Erro detalhado Supabase:", upsertError);
+      // Erro 42501 é falta de permissão RLS
+      if (upsertError.code === '42501') {
+        throw new Error("Erro de Permissão (RLS): Você ativou o RLS no Supabase mas não criou a Política (Policy) de acesso. Execute o script SQL de política.");
+      }
       throw new Error(upsertError.message || "Erro desconhecido no banco de dados.");
     }
 
@@ -101,7 +105,10 @@ export const deletePatient = async (id: string) => {
   const current = getLocalData();
   setLocalData(current.filter(p => p.id !== id));
   try {
-    await supabase.from('patients').delete().eq('id', id);
+    const { error } = await supabase.from('patients').delete().eq('id', id);
+    if (error && error.code === '42501') {
+      alert("Erro de Permissão: Não foi possível excluir na nuvem. Verifique as políticas de RLS.");
+    }
   } catch (err) {
     console.error("Erro ao deletar:", err);
   }

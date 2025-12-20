@@ -5,7 +5,7 @@ import { Patient } from './types';
 import { PatientRegistration, PatientList } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
 import { Card, Input, Button } from './components/UiComponents';
-import { Activity, Loader2, CloudOff, CheckCircle2, RefreshCw, AlertCircle } from 'lucide-react';
+import { Activity, Loader2, CloudOff, CheckCircle2, RefreshCw, AlertCircle, ShieldAlert } from 'lucide-react';
 import { getPatients, savePatient, deletePatient, subscribeToChanges } from './services/patientService';
 
 const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
@@ -50,7 +50,7 @@ const App: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'error' | 'syncing' | 'conflict'>('synced');
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'error' | 'syncing' | 'conflict' | 'permission_error'>('synced');
   const [lastSync, setLastSync] = useState<Date | null>(null);
   
   const isUpdatingRef = useRef(false);
@@ -108,6 +108,9 @@ const App: React.FC = () => {
         setSyncStatus('conflict');
         alert(err.message);
         loadData(true);
+      } else if (err.message.includes('Permissão')) {
+        setSyncStatus('permission_error');
+        alert(err.message);
       } else {
         setSyncStatus('error');
         alert("ERRO AO SALVAR NA NUVEM: " + err.message);
@@ -127,7 +130,11 @@ const App: React.FC = () => {
       setSyncStatus('synced');
       setLastSync(new Date());
     } catch (err: any) {
-      setSyncStatus('error');
+      if (err.message.includes('Permissão')) {
+        setSyncStatus('permission_error');
+      } else {
+        setSyncStatus('error');
+      }
       alert("ERRO AO CRIAR PACIENTE: " + err.message);
     } finally {
       isUpdatingRef.current = false;
@@ -171,6 +178,11 @@ const App: React.FC = () => {
         {syncStatus === 'conflict' && (
           <div className="bg-orange-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 shadow-md animate-pulse">
             <AlertCircle size={10} /> Conflito detectado!
+          </div>
+        )}
+        {syncStatus === 'permission_error' && (
+          <div className="bg-purple-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto shadow-md">
+            <ShieldAlert size={10} /> Erro de Permissão (RLS). Execute as políticas no Supabase.
           </div>
         )}
         {syncStatus === 'error' && (

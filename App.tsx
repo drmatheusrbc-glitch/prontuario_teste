@@ -5,48 +5,72 @@ import { Patient } from './types';
 import { PatientRegistration, PatientList } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
 import { Card, Input, Button } from './components/UiComponents';
-import { Activity, Loader2, CloudOff, CheckCircle2, RefreshCw, AlertCircle, ShieldAlert } from 'lucide-react';
+import { Activity, Loader2, CloudOff, CheckCircle2, RefreshCw, AlertCircle, ShieldAlert, Lock } from 'lucide-react';
 import { getPatients, savePatient, deletePatient, subscribeToChanges } from './services/patientService';
 
 const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const valid = [
-      { user: 'drmatheusrbc@gmail.com', pass: '150199' },
-      { user: 'marilia', pass: 'marilia' },
-      { user: 'marilia@scrp.com', pass: 'marilia' }
-    ].some(c => c.user === email.trim().toLowerCase() && c.pass === password.trim());
-
-    if (valid) onLogin();
-    else setError('Email ou senha incorretos.');
+    // Senha única de acesso: 150199
+    if (password.trim() === '150199') {
+      onLogin();
+    } else {
+      setError('Senha incorreta.');
+      setPassword('');
+    }
   };
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Activity className="mx-auto text-blue-600 mb-4" size={48} />
-          <h1 className="text-3xl font-bold text-slate-800">RecMed</h1>
+          <div className="bg-blue-600 w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-200">
+            <Activity className="text-white" size={40} />
+          </div>
+          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">RecMed</h1>
+          <p className="text-slate-500 mt-2">Gestão Clínica e Prontuário</p>
         </div>
-        <Card>
+        <Card className="shadow-xl border-t-4 border-t-blue-600">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <Input label="Email ou Usuário" value={email} onChange={e => setEmail(e.target.value)} required />
-            <Input label="Senha" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <Button className="w-full" type="submit">Entrar</Button>
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-700 ml-1">Senha de Acesso</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <Lock size={18} />
+                </div>
+                <input 
+                  type="password" 
+                  autoFocus
+                  className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 pr-3 py-3 border bg-white text-slate-900 text-lg tracking-widest placeholder:tracking-normal"
+                  placeholder="••••••"
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  required 
+                />
+              </div>
+            </div>
+            {error && (
+              <div className="bg-red-50 text-red-600 text-sm p-3 rounded-lg flex items-center gap-2 animate-shake">
+                <AlertCircle size={16} /> {error}
+              </div>
+            )}
+            <Button className="w-full py-3 text-lg font-bold" type="submit">Entrar no Sistema</Button>
           </form>
         </Card>
+        <p className="text-center mt-8 text-slate-400 text-xs">
+          Acesso Restrito a Profissionais Autorizados
+        </p>
       </div>
     </div>
   );
 };
 
 const App: React.FC = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => localStorage.getItem('recmed_auth') === 'true');
+  // Usando sessionStorage para que o login expire ao fechar a aba/janela
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => sessionStorage.getItem('recmed_auth') === 'true');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -56,7 +80,7 @@ const App: React.FC = () => {
   const isUpdatingRef = useRef(false);
 
   useEffect(() => {
-    localStorage.setItem('recmed_auth', String(isAuthenticated));
+    sessionStorage.setItem('recmed_auth', String(isAuthenticated));
     if (isAuthenticated) {
       loadData();
       
@@ -187,7 +211,7 @@ const App: React.FC = () => {
         )}
         {syncStatus === 'error' && (
           <div className="bg-red-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto shadow-md">
-            <CloudOff size={10} /> Erro de Conexão. <button onClick={() => loadData(true)} className="underline ml-2 font-bold">Tentar Novamente</button>
+            <CloudOff size={10} /> Erro de Conexão. <button onClick={() => loadData(true)} className="underline ml-2 font-bold font-sans">Tentar Novamente</button>
           </div>
         )}
         {syncStatus === 'synced' && lastSync && (

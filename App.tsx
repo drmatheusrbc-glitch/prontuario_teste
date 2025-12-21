@@ -4,8 +4,8 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Patient } from './types';
 import { PatientRegistration, PatientList } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
-import { Card, Input, Button } from './components/UiComponents';
-import { Activity, Loader2, CloudOff, CheckCircle2, RefreshCw, AlertCircle, ShieldAlert, Lock } from 'lucide-react';
+import { Card, Button } from './components/UiComponents';
+import { Activity, Loader2, CloudOff, RefreshCw, AlertCircle, Lock } from 'lucide-react';
 import { getPatients, savePatient, deletePatient, subscribeToChanges } from './services/patientService';
 
 const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
@@ -43,7 +43,7 @@ const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
                 <input 
                   type="password" 
                   autoFocus
-                  className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 pr-3 py-3 border bg-white text-slate-900 text-lg tracking-widest placeholder:tracking-normal"
+                  className="w-full rounded-lg border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 pl-10 pr-3 py-3 border bg-white text-slate-900 text-lg tracking-widest"
                   placeholder="••••••"
                   value={password} 
                   onChange={e => setPassword(e.target.value)} 
@@ -64,9 +64,7 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => sessionStorage.getItem('recmed_auth') === 'true');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'error' | 'syncing' | 'conflict' | 'permission_error'>('synced');
-  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [syncStatus, setSyncStatus] = useState<'synced' | 'error' | 'syncing'>('synced');
   
   const isUpdatingRef = useRef(false);
 
@@ -74,63 +72,35 @@ const App: React.FC = () => {
     sessionStorage.setItem('recmed_auth', String(isAuthenticated));
     if (isAuthenticated) {
       loadData();
-      
       const unsubscribe = subscribeToChanges(() => {
-        // Apenas recarrega se não estivermos salvando algo no momento
-        if (!isUpdatingRef.current) {
-          loadData(true);
-        }
+        // Só atualiza ao fundo se o usuário NÃO estiver salvando dados manualmente
+        if (!isUpdatingRef.current) loadData(true);
       });
-
-      // Removido o evento de focus que causava atualizações excessivas
-      return () => {
-        unsubscribe();
-      };
+      return () => unsubscribe();
     }
   }, [isAuthenticated]);
 
   const loadData = async (silent = false) => {
-    if (isUpdatingRef.current && silent) return;
-    
-    if (silent) setIsRefreshing(true);
-    else setLoading(true);
-    
+    if (!silent) setLoading(true);
     setSyncStatus('syncing');
     try {
       const data = await getPatients();
       setPatients(data);
       setSyncStatus('synced');
-      setLastSync(new Date());
     } catch (err) {
       setSyncStatus('error');
     } finally {
       setLoading(false);
-      setIsRefreshing(false);
     }
   };
 
   const handleUpdatePatient = async (updatedPatient: Patient) => {
     isUpdatingRef.current = true;
-    setSyncStatus('syncing');
-    
     try {
       const saved = await savePatient(updatedPatient);
       setPatients(prev => prev.map(p => p.id === saved.id ? saved : p));
-      setSyncStatus('synced');
-      setLastSync(new Date());
     } catch (err: any) {
-      if (err.message.includes('CONFLITO')) {
-        setSyncStatus('conflict');
-        alert(err.message);
-        loadData(true);
-      } else if (err.message.includes('Permissão')) {
-        setSyncStatus('permission_error');
-        alert(err.message);
-      } else {
-        setSyncStatus('error');
-        alert("ERRO AO SALVAR NA NUVEM: " + err.message);
-      }
-      console.error(err);
+      alert("Erro ao salvar: " + err.message);
     } finally {
       isUpdatingRef.current = false;
     }
@@ -138,32 +108,20 @@ const App: React.FC = () => {
 
   const handleAddPatient = async (newPatient: Patient) => {
     isUpdatingRef.current = true;
-    setSyncStatus('syncing');
     try {
       const saved = await savePatient(newPatient);
       setPatients(prev => [saved, ...prev]);
-      setSyncStatus('synced');
-      setLastSync(new Date());
     } catch (err: any) {
-      setSyncStatus(err.message.includes('Permissão') ? 'permission_error' : 'error');
-      alert("ERRO AO CRIAR PACIENTE: " + err.message);
+      alert("Erro ao criar: " + err.message);
     } finally {
       isUpdatingRef.current = false;
     }
   };
 
   const handleDeletePatient = async (id: string) => {
-    if(window.confirm('Excluir paciente permanentemente?')) {
-      isUpdatingRef.current = true;
-      try {
-        await deletePatient(id);
-        setPatients(prev => prev.filter(p => p.id !== id));
-        setSyncStatus('synced');
-      } catch (err) {
-        setSyncStatus('error');
-      } finally {
-        isUpdatingRef.current = false;
-      }
+    if(window.confirm('Excluir paciente?')) {
+      await deletePatient(id);
+      setPatients(prev => prev.filter(p => p.id !== id));
     }
   };
 
@@ -171,7 +129,7 @@ const App: React.FC = () => {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center flex-col gap-4">
         <Loader2 className="animate-spin text-blue-600" size={48} />
-        <p className="text-slate-500 font-medium">Conectando ao banco de dados...</p>
+        <p className="text-slate-500 font-medium">Carregando Prontuários...</p>
       </div>
     );
   }
@@ -180,25 +138,20 @@ const App: React.FC = () => {
     <HashRouter>
       <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none">
         {syncStatus === 'syncing' && (
-          <div className="bg-blue-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 shadow-md">
-            <RefreshCw size={10} className="animate-spin" /> Sincronizando...
-          </div>
-        )}
-        {syncStatus === 'permission_error' && (
-          <div className="bg-purple-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto shadow-md">
-            <ShieldAlert size={10} /> Erro de Permissão (RLS). Execute as políticas no Supabase.
+          <div className="bg-blue-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 shadow-md opacity-80">
+            <RefreshCw size={10} className="animate-spin" /> Atualizando Dados...
           </div>
         )}
         {syncStatus === 'error' && (
-          <div className="bg-red-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto shadow-md">
-            <CloudOff size={10} /> Erro de Conexão. <button onClick={() => loadData(true)} className="underline ml-2 font-bold">Tentar Novamente</button>
+          <div className="bg-red-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto">
+            <CloudOff size={10} /> Erro de Sincronização.
           </div>
         )}
       </div>
 
       <Routes>
         <Route path="/login" element={!isAuthenticated ? <LoginScreen onLogin={() => setIsAuthenticated(true)} /> : <Navigate to="/" />} />
-        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={() => setIsAuthenticated(false)} onImport={(data) => { setPatients(data); loadData(true); }} onRefresh={() => loadData(true)} isRefreshing={isRefreshing} /> : <Navigate to="/login" />} />
+        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={() => setIsAuthenticated(false)} onImport={(data) => { setPatients(data); loadData(true); }} onRefresh={() => loadData(true)} isRefreshing={false} /> : <Navigate to="/login" />} />
         <Route path="/register" element={isAuthenticated ? <PatientRegistration onAddPatient={handleAddPatient} /> : <Navigate to="/login" />} />
         <Route path="/patient/:id/*" element={isAuthenticated ? <PatientDashboard patients={patients} updatePatient={handleUpdatePatient} /> : <Navigate to="/login" />} />
       </Routes>

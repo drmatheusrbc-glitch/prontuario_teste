@@ -5,8 +5,8 @@ import { Patient } from './types';
 import { PatientRegistration, PatientList } from './components/PatientRegistration';
 import { PatientDashboard } from './components/PatientDashboard';
 import { Card, Button } from './components/UiComponents';
-import { Activity, Loader2, CloudOff, RefreshCw, AlertCircle, Lock } from 'lucide-react';
-import { getPatients, savePatient, deletePatient, subscribeToChanges } from './services/patientService';
+import { Activity, Loader2, AlertCircle, Lock } from 'lucide-react';
+import { getPatients, savePatient, deletePatient } from './services/patientService';
 
 const LoginScreen: React.FC<{ onLogin: () => void }> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
@@ -64,7 +64,7 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => sessionStorage.getItem('recmed_auth') === 'true');
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<'synced' | 'error' | 'syncing'>('synced');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   const isUpdatingRef = useRef(false);
 
@@ -72,25 +72,21 @@ const App: React.FC = () => {
     sessionStorage.setItem('recmed_auth', String(isAuthenticated));
     if (isAuthenticated) {
       loadData();
-      const unsubscribe = subscribeToChanges(() => {
-        // Só atualiza ao fundo se o usuário NÃO estiver salvando dados manualmente
-        if (!isUpdatingRef.current) loadData(true);
-      });
-      return () => unsubscribe();
     }
   }, [isAuthenticated]);
 
-  const loadData = async (silent = false) => {
-    if (!silent) setLoading(true);
-    setSyncStatus('syncing');
+  const loadData = async (manual = false) => {
+    if (manual) setIsRefreshing(true);
+    else setLoading(true);
+    
     try {
       const data = await getPatients();
       setPatients(data);
-      setSyncStatus('synced');
     } catch (err) {
-      setSyncStatus('error');
+      console.error("Erro ao carregar dados:", err);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -119,7 +115,7 @@ const App: React.FC = () => {
   };
 
   const handleDeletePatient = async (id: string) => {
-    if(window.confirm('Excluir paciente?')) {
+    if(window.confirm('Excluir paciente definitivamente?')) {
       await deletePatient(id);
       setPatients(prev => prev.filter(p => p.id !== id));
     }
@@ -136,22 +132,9 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className="fixed top-0 left-0 right-0 z-[100] pointer-events-none">
-        {syncStatus === 'syncing' && (
-          <div className="bg-blue-600 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 shadow-md opacity-80">
-            <RefreshCw size={10} className="animate-spin" /> Atualizando Dados...
-          </div>
-        )}
-        {syncStatus === 'error' && (
-          <div className="bg-red-500 text-white text-[10px] py-1 px-4 flex justify-center items-center gap-2 pointer-events-auto">
-            <CloudOff size={10} /> Erro de Sincronização.
-          </div>
-        )}
-      </div>
-
       <Routes>
         <Route path="/login" element={!isAuthenticated ? <LoginScreen onLogin={() => setIsAuthenticated(true)} /> : <Navigate to="/" />} />
-        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={() => setIsAuthenticated(false)} onImport={(data) => { setPatients(data); loadData(true); }} onRefresh={() => loadData(true)} isRefreshing={false} /> : <Navigate to="/login" />} />
+        <Route path="/" element={isAuthenticated ? <PatientList patients={patients} onDelete={handleDeletePatient} onLogout={() => setIsAuthenticated(false)} onImport={(data) => { setPatients(data); }} onRefresh={() => loadData(true)} isRefreshing={isRefreshing} /> : <Navigate to="/login" />} />
         <Route path="/register" element={isAuthenticated ? <PatientRegistration onAddPatient={handleAddPatient} /> : <Navigate to="/login" />} />
         <Route path="/patient/:id/*" element={isAuthenticated ? <PatientDashboard patients={patients} updatePatient={handleUpdatePatient} /> : <Navigate to="/login" />} />
       </Routes>
